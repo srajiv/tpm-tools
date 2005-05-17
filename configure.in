@@ -1,0 +1,98 @@
+#
+# configure.in
+#
+#       The Initial Developer of the Original Code is International
+#       Business Machines Corporation. Portions created by IBM
+#       Corporation are Copyright (C) 2005 International Business
+#       Machines Corporation. All Rights Reserved.
+#
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the Common Public License as published by
+#       IBM Corporation; either version 1 of the License, or (at your option)
+#       any later version.
+#
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       Common Public License for more details.
+#
+#       You should have received a copy of the Common Public License
+#       along with this program; if not, a copy can be viewed at
+#       http://www.opensource.org/licenses/cpl1.0.php.
+#
+
+AC_INIT(managetpm, 1.0.0, xxx@sourceforge.net)
+AC_CONFIG_SRCDIR(Makefile.am)
+AM_INIT_AUTOMAKE(1.6.1)
+
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_INSTALL
+AC_PROG_LIBTOOL
+AC_PROG_LN_S
+
+AC_CHECK_PROGS(AR, ar)
+AC_CHECK_PROGS(COPY, cp)
+AC_CHECK_PROGS(ECHO, echo)
+AC_CHECK_PROGS(MKDIR, mkdir)
+AC_CHECK_PROGS(RM, rm)
+
+AM_GNU_GETTEXT([external])
+
+OPENSSL="0"
+AC_CHECK_LIB(crypto, PEM_read_X509, [OPENSSL_LIB="1"], [OPENSSL_LIB="0"])
+AC_CHECK_HEADER(openssl/evp.h, [OPENSSL_INC="1"], [OPENSSL_INC="0"])
+if test "$OPENSSL_LIB" = "1" -a "$OPENSSL_INC" = "1"; then
+  OPENSSL="1"
+fi
+
+AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
+AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
+if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
+  OPENCRYPTOKI="1"
+fi
+
+AM_CONDITIONAL([P11_SUPPORT], [test "$OPENSSL" = "1" -a "$OPENCRYPTOKI" = "1"])
+
+AC_HEADER_STDC
+
+AC_C_CONST
+AC_C_INLINE
+
+AC_SYS_LONG_FILE_NAMES
+
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
+AC_TYPE_UID_T
+
+DEBUG=""
+AC_MSG_CHECKING([for debug-enabled build])
+AC_ARG_ENABLE(debug, [--enable-debug            Create a debug build that outputs debug messages],
+ [if test "$enableval" = "yes"; then
+    DEBUG="yes"
+    AC_MSG_RESULT([yes])
+  else
+    DEBUG="no"
+    AC_MSG_RESULT([no])
+  fi],
+ [DEBUG="no"
+  AC_MSG_RESULT([no])])
+
+if test "$DEBUG" == "yes"; then
+  CFLAGS="-DDEBUG -g -O0 -Wall -Werror"
+fi
+
+AC_CONFIG_FILES(./Makefile		\
+		po/Makefile.in		\
+		m4/Makefile 		\
+		lib/Makefile		\
+		src/Makefile		\
+		src/tpm_mgmt/Makefile	\
+		src/data_mgmt/Makefile  \
+		man/Makefile            \
+		man/man1/Makefile       \
+		man/man8/Makefile)
+AC_OUTPUT
