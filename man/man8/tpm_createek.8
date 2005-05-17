@@ -18,21 +18,21 @@
 .el .ne 3
 .IP "\\$1" \\$2
 ..
-.TH "tpm_getpubek" 8 "2005-05-05"  "TPM Management"
+.TH "tpm_createek" 8 "2005-05-05"  "TPM Management"
 .ce 1
-TPM Management - tpm_getpubek 
+TPM Management - tpm_createek 
 .SH NAME
-tpm_getpubek \- display the public portion of the TPM's Endorsement Key
+tpm_createek \- create an Endorsement Key Pair on the TPM
 .SH "SYNOPSIS"
 .ad l
 .hy 0
-.B tpm_getpubek
+.B tpm_createek
 .RB [ OPTION ]
 
 .SH "DESCRIPTION"
 .PP
-\fBtpm_getpubek\fR requests the TPM's public portion of the Endorsement Key  
-(via the TPM_ReadPubek API).  This operation can be restricted to require owner authorization, in that case the command will prompt for the owner password and request the data (via the TPM_OwnerReadPubek API). The key information is output on a sucessful call.
+\fBtpm_createek\fR creates and Endorsement Key Pair on the TPM   
+(via the TPM_CreateEndorsementKeyPair API).  This should rarely be required as the Endorsement Key is normally installed as part of manufacturing.  However, you might need to run this command once if commands such as tpm_getpubek are returning error code 35 from the TPM layer.
 
 .TP
 \fB\-h\fR, \fB\-\-help\fR
@@ -46,7 +46,7 @@ Set logging level.
 
 .SH "SEE ALSO"
 .PP
-\fBtpm_version\fR(1), \fBtpm_takeownership\fR(8), \fBtpm_restrictpubek\fR(8), \fBtpm_createek\fR(8), \fBtcsd\fR(8)
+\fBtpm_version\fR(1), \fBtpm_getpubek\fR(8), \fBtcsd\fR(8)
 
 .SH "REPORTING BUGS"
 Report bugs to <trousers-users@lists.sourceforge.net>
