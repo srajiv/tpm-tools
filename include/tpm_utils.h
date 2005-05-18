@@ -22,10 +22,18 @@
 #ifndef __TPM_UTILS_H
 #define __TPM_UTILS_H
 
+#ifdef ENABLE_NLS
 #include <libintl.h>
 #include <locale.h>
 #define _(String) gettext(String)
 #define N_(String) String
+#else
+#define setlocale(category, local)
+#define bindtextdomain(package, localedir)
+#define textdomain(package);
+#define _(String) String
+#define N_(String) String
+#endif
 
 #include <string.h>
 #include <stdio.h>
