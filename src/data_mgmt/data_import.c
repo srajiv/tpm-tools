@@ -213,14 +213,6 @@ findExistingObjects( CK_SESSION_HANDLE   a_hSession,
 
 	rv = findObjects( a_hSession, tAttr, ulAttrCount, a_phObject, a_pulObjectCount );
 
-#ifdef DEBUG
-	{
-		CK_ULONG  i;
-		for ( i = 0; i < *a_pulObjectCount; i++ )
-			displayObject( a_hSession, (*a_phObject)[ i ], FALSE );
-	} while ( 0 );
-#endif
-
 	return ( rv == CKR_OK ) ? 0 : -1;
 }
 

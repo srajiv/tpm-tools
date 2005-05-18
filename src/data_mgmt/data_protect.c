@@ -240,14 +240,6 @@ getKey( CK_SESSION_HANDLE  a_hSession,
 		goto out;
 	}
 
-#ifdef DEBUG
-	{
-		CK_ULONG  i;
-		for ( i = 0; i < ulObjCount; i++ )
-			displayObject( a_hSession, phObjList[ i ], FALSE );
-	} while ( 0 );
-#endif
-
 	// Return the handle to the key
 	*a_phObject = phObjList[ 0 ];
 
