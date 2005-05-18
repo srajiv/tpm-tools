@@ -20,16 +20,16 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
+# Gettext support
+localedir		=	$(datadir)/locale
+
+# Libraries to build
 noinst_LTLIBRARIES	=	libtpm_tspi.la	\
 				libtpm_utils.la	
 
-datadir = @datadir@
-localedir = $(datadir)/locale
-DEFS = -DLOCALEDIR=\"$(localedir)\" @DEFS@
-
 #
-# Common build flags
-AM_CPPFLAGS		=	-I$(top_builddir)/include -D_LINUX
+# Common build flags (with gettext support)
+AM_CPPFLAGS		=	-I$(top_builddir)/include -D_LINUX -DLOCALEDIR=\"$(localedir)\"
 
 #
 # Utility library

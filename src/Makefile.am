@@ -26,7 +26,3 @@ SUBDIRS		=	tpm_mgmt
 if P11_SUPPORT
 SUBDIRS		+=	data_mgmt
 endif
-
-datadir = @datadir@
-localedir = $(datadir)/locale
-DEFS = -DLOCALDIR=\"$(localdir)\" @DEFS@
