@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-AC_INIT(managetpm, 1.0.0, xxx@sourceforge.net)
+AC_INIT(tpm-tools, 1.0.0, trousers-tech@lists.sf.net)
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_INIT_AUTOMAKE(1.6.1)
 
