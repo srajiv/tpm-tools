@@ -282,10 +282,11 @@ void tspiDebug(const char *a_szName, TSS_RESULT a_iResult)
 void tspiError(const char *a_szName, TSS_RESULT a_iResult)
 {
 
-	logError(_("%s failed: 0x%08x - layer=%s, code=%04x (%d)\n"),
+	logError(_("%s failed: 0x%08x - layer=%s, code=%04x (%d), %s\n"),
 		 a_szName, a_iResult, Trspi_Error_Layer(a_iResult),
 		 Trspi_Error_Code(a_iResult),
-		 Trspi_Error_Code(a_iResult));
+		 Trspi_Error_Code(a_iResult),
+		 Trspi_Error(a_iResult));
 }
 
 void tspiResult(const char *a_szName, TSS_RESULT a_tResult)

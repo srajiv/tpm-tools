@@ -23,6 +23,7 @@
 #define __TPM_TSPI_H
 
 #include <tss/tss.h>
+#include <tss/trousers.h>
 #include <tpm_utils.h>
 
 //Display functions

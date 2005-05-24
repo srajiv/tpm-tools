@@ -46,6 +46,7 @@ if test "$OPENSSL_LIB" = "1" -a "$OPENSSL_INC" = "1"; then
   OPENSSL="1"
 fi
 
+OPENCRYPTOKI="0"
 AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
 AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
 if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
@@ -82,7 +83,7 @@ AC_ARG_ENABLE(debug, [--enable-debug            Create a debug build that output
   AC_MSG_RESULT([no])])
 
 if test "$DEBUG" == "yes"; then
-  CFLAGS="-DDEBUG -g -O0 -Wall -Werror"
+  CFLAGS="$CFLAGS -DDEBUG -g -O0 -Wall -Werror"
 fi
 
 AC_CONFIG_FILES(./Makefile		\

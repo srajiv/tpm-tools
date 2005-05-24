@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-sbin_PROGRAMS	=	tpmtoken_init		\
+bin_PROGRAMS	=	tpmtoken_init		\
 			tpmtoken_setpasswd	\
 			tpmtoken_objects	\
 			tpmtoken_import		\

@@ -24,6 +24,7 @@
 
 struct changeAuth {
 	char *name;
+	char *prompt;
 	BOOL change;
 };
 
@@ -33,7 +34,11 @@ enum {
 	owner
 };
 
-static struct changeAuth auths[] = { {N_("SRK")}, {N_("owner")}, {0, 0} };
+static struct changeAuth auths[] = {
+		{N_("SRK"), N_("Enter new SRK password: "), FALSE},
+		{N_("owner"), N_("Enter new owner password: "), FALSE},
+		{NULL, NULL, FALSE },
+	};
 static BOOL changeRequested = FALSE;
 
 static void help(const char *aCmd)
@@ -130,13 +135,7 @@ int main(int argc, char **argv)
 	do {
 		if (auths[i].change) {
 			logInfo(_("Changing password for: %s.\n"), _(auths[i].name));
-			const int len =
-			    strlen(_("Enter new password for: ")) +
-			    strlen(_(auths[i].name)) + 1;
-			char prompt[len];
-			snprintf(prompt, len, "%s%s",
-				_("Enter new password for: "), _(auths[i].name));
-			passwd = getPasswd(prompt, TRUE);
+			passwd = getPasswd(_(auths[i].prompt), TRUE);
 			if (!passwd) {
 				logError(_("Failed to get new password.\n"));
 				goto out_close;
@@ -167,13 +166,15 @@ int main(int argc, char **argv)
 				     hNewPolicy) != TSS_SUCCESS)
 					goto out_close;
 			}
-			logMsg(_("Change to %s successful.\n"),
+			logInfo(_("Change of %s password successful.\n"),
 			       _(auths[i].name));
 			shredPasswd(passwd);
 			passwd = NULL;
 		}
 	}
 	while (auths[++i].name);
+
+	iRc = 0;
 
 
       out_close:
