@@ -19,8 +19,6 @@
  * http://www.opensource.org/licenses/cpl1.0.php.
  */
 
-#include <netinet/in.h>
-
 #include "tpm_tspi.h"
 
 const char *mapUnknown = "Unknown";
@@ -238,7 +236,7 @@ TSS_RESULT displayKey(TSS_HKEY a_hKey)
 				    &uiAttr);
 		if (result != TSS_SUCCESS)
 			return result;
-		logMsg(_("  Key Size:          %d bits\n"), ntohl(uiAttr));
+		logMsg(_("  Key Size:          %d bits\n"), uiAttr);
 	}
 
 	result =
