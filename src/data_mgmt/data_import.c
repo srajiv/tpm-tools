@@ -306,13 +306,18 @@ out:
  * readX509Cert
  *   Use the OpenSSL library to read a PEM formatted X509 certificate.
  */
-X509 *
-readX509Cert( const char *a_pszFile,
-              int         a_bCheckKey ) {
+int
+readX509Cert( const char  *a_pszFile,
+              int          a_bCheckKey,
+              X509       **a_pX509 ) {
+
+	int rc = -1;
 
 	FILE     *pFile = stdin;
 	X509     *pX509 = NULL;
 	EVP_PKEY *pKey  = NULL;
+
+	*a_pX509 = NULL;
 
 	// Open the file to be read
 	if ( a_pszFile ) {
@@ -320,21 +325,32 @@ readX509Cert( const char *a_pszFile,
 		pFile = fopen( a_pszFile, "r" );
 		if ( !pFile ) {
 			logError( TOKEN_FILE_OPEN_ERROR, a_pszFile, strerror( errno ) );
-			return NULL;
+			goto out;
 		}
 	}
 
 	// Read the X509 certificate
 	pX509 = PEM_read_X509( pFile, NULL, NULL, NULL );
 	if ( !pX509 ) {
-		logInfo( TOKEN_OPENSSL_ERROR,
-			ERR_error_string( ERR_get_error( ), NULL ) );
+		unsigned long  ulError = ERR_get_error( );
+
+		// Not necessarily an error if the file doesn't contain the cert
+		if ( ( ERR_GET_LIB( ulError ) == ERR_R_PEM_LIB ) &&
+		     ( ERR_GET_REASON( ulError ) == PEM_R_NO_START_LINE ) ) {
+			logInfo( TOKEN_OPENSSL_ERROR, ERR_error_string( ulError, NULL ) );
+			rc = 0;
+		}
+		else
+			logError( TOKEN_OPENSSL_ERROR, ERR_error_string( ulError, NULL ) );
+
 		goto out;
 	}
 
 	// Make sure the certificate uses an RSA key
-	if ( !a_bCheckKey )
+	if ( !a_bCheckKey ) {
+		rc = 0;
 		goto out;
+	}
 
 	pKey = X509_get_pubkey( pX509 );
 	if ( !pKey ) {
@@ -354,11 +370,15 @@ readX509Cert( const char *a_pszFile,
 		goto out;
 	}
 
+	rc = 0;
+
 out:
-	if ( a_pszFile )
+	*a_pX509 = pX509;
+
+	if ( a_pszFile && pFile )
 		fclose( pFile );
 
-	return pX509;
+	return rc;
 }
 
 /*
@@ -527,11 +547,16 @@ out:
  * readRsaKey
  *   Use the OpenSSL library to read a PEM formatted RSA key.
  */
-RSA *
-readRsaKey( const char *a_pszFile ) {
+int
+readRsaKey( const char  *a_pszFile,
+            RSA        **a_pRsa ) {
+
+	int  rc = -1;
 
 	FILE *pFile = stdin;
 	RSA  *pRsa  = NULL;
+
+	*a_pRsa = NULL;
 
 	// Open the file to be read
 	if ( a_pszFile ) {
@@ -539,7 +564,7 @@ readRsaKey( const char *a_pszFile ) {
 		pFile = fopen( a_pszFile, "r" );
 		if ( !pFile ) {
 			logError( TOKEN_FILE_OPEN_ERROR, a_pszFile, strerror( errno ) );
-			return NULL;
+			goto out;
 		}
 	}
 
@@ -547,14 +572,29 @@ readRsaKey( const char *a_pszFile ) {
 	//   This reads the public key also, not just the private key
 	pRsa = PEM_read_RSAPrivateKey( pFile, NULL, NULL, NULL );
 	if ( !pRsa ) {
-		logInfo( TOKEN_OPENSSL_ERROR,
-				ERR_error_string( ERR_get_error( ), NULL ) );
+		unsigned long  ulError = ERR_get_error( );
+
+		// Not necessarily an error if the file doesn't contain the key
+		if ( ( ERR_GET_LIB( ulError ) == ERR_R_PEM_LIB ) &&
+		     ( ERR_GET_REASON( ulError ) == PEM_R_NO_START_LINE ) ) {
+			logInfo( TOKEN_OPENSSL_ERROR, ERR_error_string( ulError, NULL ) );
+			rc = 0;
+		}
+		else
+			logError( TOKEN_OPENSSL_ERROR, ERR_error_string( ulError, NULL ) );
+
+		goto out;
 	}
 
-	if ( a_pszFile )
+	rc = 0;
+
+out:
+	if ( a_pszFile && pFile )
 		fclose( pFile );
 
-	return pRsa;
+	*a_pRsa = pRsa;
+
+	return rc;
 }
 
 /*
@@ -895,7 +935,8 @@ getSubjectId( X509 *a_pX509 ) {
 
 	// Use the Id input file if specified
 	if ( g_pszIdFile )
-		pX509 = readX509Cert( g_pszIdFile, FALSE );
+		if ( readX509Cert( g_pszIdFile, FALSE, &pX509 ) == -1 )
+			goto out;
 
 	if ( !pX509 ) {
 		// Prompt the user about creating without it.
@@ -1000,22 +1041,26 @@ main( int    a_iArgc,
 
 	// Create the structures based on the input
 	if ( !g_pszType ) {
-		pX509 = readX509Cert( g_pszFile, TRUE );
-		pRsa = readRsaKey( g_pszFile );
+		if ( readX509Cert( g_pszFile, TRUE, &pX509 ) == -1 )
+			goto done;
+		if ( readRsaKey( g_pszFile, &pRsa ) == -1 )
+			goto done;
 		if ( !pX509 && !pRsa ) {
 			logError( TOKEN_OBJECT_ERROR );
 			goto done;
 		}
 	}
 	else if ( strcmp( g_pszType, TOKEN_OBJECT_CERT ) == 0 ) {
-		pX509 = readX509Cert( g_pszFile, TRUE );
+		if ( readX509Cert( g_pszFile, TRUE, &pX509 ) == -1 )
+			goto done;
 		if ( !pX509 ) {
 			logError( TOKEN_OBJECT_ERROR );
 			goto done;
 		}
 	}
 	else if ( strcmp( g_pszType, TOKEN_OBJECT_KEY ) == 0 ) {
-		pRsa = readRsaKey( g_pszFile );
+		if ( readRsaKey( g_pszFile, &pRsa ) == -1 )
+			goto done;
 		if ( !pRsa ) {
 			logError( TOKEN_OBJECT_ERROR );
 			goto done;
