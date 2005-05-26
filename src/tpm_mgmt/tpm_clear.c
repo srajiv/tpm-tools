@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 	iRc = 0;
 	logSuccess(argv[0]);
 
-	logMsg( "TPM Successfuly Cleared.  You need to reboot to complete this operation.  After reboot the TPM will be in the default state: unowned, disabled and inactive." );
+	logMsg( _("TPM Successfuly Cleared.  You need to reboot to complete this operation.  After reboot the TPM will be in the default state: unowned, disabled and inactive.\n") );
 
 	//Cleanup
       out_close:
