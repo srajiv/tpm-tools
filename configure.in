@@ -23,6 +23,8 @@
 
 AC_INIT(tpm-tools, 1.0.0, trousers-tech@lists.sf.net)
 AC_CONFIG_SRCDIR(Makefile.am)
+AC_CANONICAL_TARGET
+
 AM_INIT_AUTOMAKE(1.6.1)
 
 AC_PROG_CC
@@ -38,6 +40,12 @@ AC_CHECK_PROGS(MKDIR, mkdir)
 AC_CHECK_PROGS(RM, rm)
 
 AM_GNU_GETTEXT([external])
+
+case $target in
+	*x86_64*)
+		CFLAGS="$CFLAGS -m32"
+		;;
+esac
 
 OPENSSL="0"
 AC_CHECK_LIB(crypto, PEM_read_X509, [OPENSSL_LIB="1"], [OPENSSL_LIB="0"])
