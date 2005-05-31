@@ -65,7 +65,7 @@ usageCallback( const char *a_pszCmd ) {
 
 	logCmdHelp( a_pszCmd );
 	logCmdOption( "--security-officer",
-			_("Change the security office password") );
+			_("Change the security officer password") );
 }
 
 /*

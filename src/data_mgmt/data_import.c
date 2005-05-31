@@ -116,15 +116,13 @@ parseCallback( int         a_iOpt,
 void
 usageCallback( const char *a_pszCmd ) {
 
-	char *szArgs[] = {
-			"FILE",
-			NULL,
-		};
+	char *szArgs[2];
+	char *szArgsDesc[2];
 
-	char *szArgsDesc[] = {
-			"Import the object(s) contained in FILE",
-			NULL,
-		};
+	szArgs[ 0 ] = "FILE";
+	szArgsDesc[ 0 ] = _("Import the PEM formatted RSA key and/or X.509 certificate object contained in FILE");
+	szArgs[ 1 ] = NULL;
+	szArgsDesc[ 1 ] = NULL;
 
 	logCmdHelpEx( a_pszCmd, szArgs, szArgsDesc );
 	logCmdOption( "-i, --idfile FILE",
