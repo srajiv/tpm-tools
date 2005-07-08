@@ -76,20 +76,23 @@ int main(int argc, char **argv)
 	    != TSS_SUCCESS)
 		goto out_close;
 
-	fSrkAttrs = TSS_KEY_TYPE_STORAGE
-	    | TSS_KEY_NOT_MIGRATABLE
-	    | TSS_KEY_SIZE_2048 | TSS_KEY_AUTHORIZATION;
+	fSrkAttrs = TSS_KEY_TSP_SRK
+	    | ( strlen(szSrkPasswd) ? 
+		TSS_KEY_AUTHORIZATION : TSS_KEY_NO_AUTHORIZATION );
+
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_RSAKEY, fSrkAttrs,
 	     &hSrk) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
-		goto out_obj_close;
+	if ( strlen(szSrkPasswd) ) {
+		if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
+			goto out_obj_close;
 
-	if (policySetSecret(hSrkPolicy, strlen(szSrkPasswd), szSrkPasswd)
-	    != TSS_SUCCESS)
-		goto out_obj_close;
+		if (policySetSecret(hSrkPolicy, strlen(szSrkPasswd), szSrkPasswd)
+		    != TSS_SUCCESS)
+			goto out_obj_close;
+	}
 
 	if (tpmTakeOwnership(hTpm, hSrk) != TSS_SUCCESS)
 		goto out_obj_close;
