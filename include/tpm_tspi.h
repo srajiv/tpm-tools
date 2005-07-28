@@ -22,9 +22,14 @@
 #ifndef __TPM_TSPI_H
 #define __TPM_TSPI_H
 
-#include <tss/tss.h>
-#include <tss/trousers.h>
+#include <trousers/tss.h>
+#include <trousers/trousers.h>
 #include <tpm_utils.h>
+
+#define NULL_HOBJECT 0
+#define NULL_HKEY NULL_HOBJECT
+#define NULL_HPCRS NULL_HOBJECT
+static TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
 
 //Display functions
 const char *displayKeyUsageMap(UINT32 a_uiData);

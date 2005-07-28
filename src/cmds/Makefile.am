@@ -21,10 +21,12 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-SUBDIRS		=	tpm_mgmt	\
-			cmds
+sbin_PROGRAMS 	=	seal_ssl_key
 
-if P11_SUPPORT
-SUBDIRS		+=	data_mgmt
-endif
+AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 
+AM_LDFLAGS	=	-ltspi
+
+LDADD		=	$(top_builddir)/lib/libtpm_tspi.la
+
+seal_ssl_key_SOURCES =	seal_ssl_key.c

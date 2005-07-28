@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	tResult = tpmGetPubEk(hTpm, FALSE, NULL, &hEk);
-	if (tResult == TCPA_DISABLED_CMD) {
+	if (tResult == TCPA_E_DISABLED_CMD) {
 		logInfo
 		    (_("Public PubEk access blocked, owner password required\n"));
 		// Prompt for owner password
