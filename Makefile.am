@@ -22,6 +22,7 @@
 #
 
 SUBDIRS		= 	m4  	\
+			include \
 			lib	\
 			src	\
 			po	\

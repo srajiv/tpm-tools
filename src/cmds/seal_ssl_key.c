@@ -267,7 +267,7 @@ int main(int argc, char **argv)
       out_close:
 	contextClose(hContext);
 
-     out_close_file:	
+      out_close_file:	
 	close(fd);
 
       out:

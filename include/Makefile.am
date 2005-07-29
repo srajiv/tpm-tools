@@ -1,3 +1,4 @@
+#
 # Makefile.am
 #
 #       The Initial Developer of the Original Code is International
@@ -19,37 +20,7 @@
 #       along with this program; if not, a copy can be viewed at
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
+unsealincludedir = $(includedir)/tpm_unseal
 
-# Gettext support
-localedir		=	$(datadir)/locale
+unsealinclude_HEADERS = tpm_unseal.h
 
-# Libraries to build
-lib_LTLIBRARIES		= 	libtpm_unseal.la 
-noinst_LTLIBRARIES	=	libtpm_tspi.la	\
-				libtpm_utils.la
-
-#
-# Common build flags (with gettext support)
-AM_CPPFLAGS		=	-I$(top_builddir)/include -D_LINUX -DLOCALEDIR=\"$(localedir)\"
-
-#
-# Utility library
-libtpm_utils_la_SOURCES	=	tpm_utils.c \
-				tpm_log.c
-
-libtpm_unseal_la_SOURCES =	tpm_unseal.c
-libtpm_unseal_la_LDFLAGS =	-ltspi
-
-#
-# TSPI interface library
-libtpm_tspi_la_SOURCES	=	tpm_tspi.c
-libtpm_tspi_la_LIBADD	=	libtpm_utils.la
-
-#
-# PKCS#11 interface library
-if P11_SUPPORT
-noinst_LTLIBRARIES	+=	libtpm_pkcs11.la
-
-libtpm_pkcs11_la_SOURCES=	tpm_pkcs11.c
-libtpm_pkcs11_la_LIBADD	=	libtpm_utils.la
-endif

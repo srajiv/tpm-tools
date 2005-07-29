@@ -97,6 +97,7 @@ fi
 AC_CONFIG_FILES(./Makefile		\
 		po/Makefile.in		\
 		m4/Makefile 		\
+		include/Makefile	\
 		lib/Makefile		\
 		src/Makefile		\
 		src/tpm_mgmt/Makefile	\
