@@ -14,7 +14,6 @@ enum tpm_errors {
 	EWRONGTSSTAG,
 	EWRONGEVPTAG,
 	EWRONGSSLTAG,
-
 }; 
 
 enum tspi_errors {
@@ -177,7 +176,6 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out_closeall;
 	}
-
 
         if ((rc=Tspi_Context_LoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, 
 					SRK_UUID, &hSrk)) != TSS_SUCCESS) {

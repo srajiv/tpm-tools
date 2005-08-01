@@ -33,11 +33,11 @@ static inline TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey, TSS_
 	return result;
 }
 
-static inline TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey, UINT32 a_len, BYTE* a_data)
+static inline TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey, UINT32 a_len, BYTE* a_data, TSS_HPCRS a_hPcrs)
 {
 
 	TSS_RESULT result =
-	    Tspi_Data_Seal(a_hEncdata, a_hKey, a_len, a_data, NULL_HPCRS);
+	    Tspi_Data_Seal(a_hEncdata, a_hKey, a_len, a_data, a_hPcrs);
 	tspiResult("Tspi_Data_Seal", result);
 
 	return result;
@@ -47,7 +47,8 @@ static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
 	logCmdOption("-f, --filename", _("Filename containing key to seal"));
-	logCmdOption("-0, --output", _("Filename to write sealed key to.  Default is the same as the input file"));
+	logCmdOption("-o, --output", _("Filename to write sealed key to.  Default is the same as the input file"));
+	logCmdOption("-p, --pcr", _("Pcrs to seal data to.  Default is none"));
 
 }
 
@@ -67,20 +68,51 @@ static void help(const char *aCmd)
 
 static char in_filename[MAX_FILENAME_SIZE] = "", out_filename[MAX_FILENAME_SIZE]="";
 static const char iv[8] = "IBM SEAL";
+static TSS_HPCRS hPcrs = NULL_HPCRS;
+static TSS_HCONTEXT hContext;
+static TSS_HTPM hTpm;
+
 static int parse(const int aOpt, const char* aArg) 
 {
 	int rc = -1;
+	UINT32 pcr_idx;
+	BYTE* pcr_idx_val;
+	UINT32 pcr_siz;
+	
 	switch(aOpt) {
 		case 'f':
 			if ( aArg ) {
 				strncpy(in_filename, aArg, MAX_FILENAME_SIZE);
 				rc = 0;
 			}
+			break;
 		case 'o':
 			if( aArg ) {
 				strncpy(out_filename, aArg, MAX_FILENAME_SIZE);
 				rc = 0;
 			}
+			break;
+		case 'p':
+			if ( aArg ) {
+				if ( hPcrs == NULL_HPCRS) {
+					if(Tspi_Context_CreateObject(hContext, 
+								TSS_OBJECT_TYPE_PCRS, 
+								0, &hPcrs) != TSS_SUCCESS)
+						break;
+				}
+				pcr_idx = atoi(aArg);
+				if (Tspi_TPM_PcrRead(hTpm, pcr_idx, &pcr_siz, 
+							&pcr_idx_val) != TSS_SUCCESS)
+					break;
+
+				if (Tspi_PcrComposite_SetPcrValue(hPcrs, pcr_idx, 
+								pcr_siz, pcr_idx_val) 
+						!= TSS_SUCCESS)
+					break;
+
+				rc = 0;
+			}
+			break;
 	}
 	return rc;
 
@@ -89,14 +121,13 @@ static int parse(const int aOpt, const char* aArg)
 int main(int argc, char **argv)
 {
 
-	TSS_HCONTEXT hContext;
-	TSS_HTPM hTpm;
 	TSS_HKEY hSrk, hKey;
 	TSS_HENCDATA hEncdata;
 	TSS_HPOLICY hPolicy;
 	int iRc = -1;
 	struct option opts[] = { {"filename", required_argument, NULL, 'f'},
-				{ "output", required_argument, NULL, 'o'} };
+				{ "output", required_argument, NULL, 'o'},
+				{ "pcr", required_argument, NULL, 'p'} };
 	FILE *file;
 	struct stat stat_buf;
 	int fd, len, i;
@@ -115,9 +146,19 @@ int main(int argc, char **argv)
 				TSS_KEY_NOT_MIGRATABLE;
         initIntlSys();
 
-	if (genericOptHandler(argc, argv, "fo", opts, sizeof(opts)/sizeof(struct option), parse, help) != 0) {
-		logError(_("Invalid option\n"));
+	if (contextCreate(&hContext) != TSS_SUCCESS)
 		goto out;
+
+	if (contextConnect(hContext) != TSS_SUCCESS)
+		goto out_close;
+
+	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
+		goto out_close;
+
+	if (genericOptHandler(argc, argv, "fo", opts, 
+		sizeof(opts)/sizeof(struct option), parse, help) != 0) {
+		logError(_("Invalid option\n"));
+		goto out_close;
 	}
 
 	if (strlen( out_filename ) == 0 )
@@ -125,7 +166,7 @@ int main(int argc, char **argv)
 
 	if( (file = fopen( in_filename, "r")) < 0) {
 		logError(_("Unable to open input file: %s\n"), in_filename);
-		goto out;
+		goto out_close;
 	}
 
 	if ( stat(in_filename, &stat_buf) != 0 ) {
@@ -149,8 +190,6 @@ int main(int argc, char **argv)
 		goto out_close_file;
 	}
 
-
-
 	data = malloc( stat_buf.st_size );
 	encData = malloc( stat_buf.st_size + EVP_CIPHER_block_size(EVP_desx_cbc()));
 	if ( !data || ! encData ) {
@@ -164,18 +203,9 @@ int main(int argc, char **argv)
 		goto out_close_file;
 	}
 
-	if (contextCreate(&hContext) != TSS_SUCCESS)
-		goto out;
-
-	if (contextConnect(hContext) != TSS_SUCCESS)
-		goto out_close;
-
-	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
-		goto out_close;
-
 	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_desx_cbc()), 
 			&randKey) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	EVP_CIPHER_CTX ctx;
 	int tmpLen;
@@ -186,44 +216,44 @@ int main(int argc, char **argv)
 	encDataLen += tmpLen;
 
 	if (keyLoadKeyByUUID(hContext,TSS_PS_TYPE_SYSTEM,SRK_UUID,&hSrk) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	if (contextCreateObject(hContext, TSS_OBJECT_TYPE_RSAKEY, keyFlags, &hKey) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	if (policyGet(hKey, &hPolicy) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 	
 	if (policySetSecret(hPolicy, strlen(POLICY_SECRET), POLICY_SECRET) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	if(keyCreateKey(hKey, hSrk, NULL_HPCRS) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	if (keyLoadKey(hKey, hSrk) != TSS_SUCCESS)
-		goto out_close;	
+		goto out_close_file;	
 
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_ENCDATA, TSS_ENCDATA_SEAL,
 	     &hEncdata) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	if (policyGet(hEncdata, &hPolicy) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 	
 	if (policySetSecret(hPolicy, strlen(POLICY_SECRET), POLICY_SECRET) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
-	if (dataSeal(hEncdata, hKey, 24, randKey) != TSS_SUCCESS)
-		goto out_close;	
+	if (dataSeal(hEncdata, hKey, 24, randKey, hPcrs) != TSS_SUCCESS)
+		goto out_close_file;	
 
 	if (getAttribData(hEncdata, TSS_TSPATTRIB_ENCDATA_BLOB,
  			  TSS_TSPATTRIB_ENCDATABLOB_BLOB, &encLen, 
 			  &encKey) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	if (getAttribData(hKey, TSS_TSPATTRIB_KEY_BLOB, TSS_TSPATTRIB_KEYBLOB_BLOB, &sealKeyLen, &sealKey) != TSS_SUCCESS)
-		goto out_close;
+		goto out_close_file;
 
 	file = fopen(out_filename, "w+");
 	if (!file) {
@@ -258,17 +288,14 @@ int main(int argc, char **argv)
 	iRc = 0;
 	logSuccess(argv[0]);
 
-	out_stream_close:
+      out_stream_close:
 		fclose(file);
-
-      out_obj_close:
-	contextCloseObject(hContext, hSrk);
-
-      out_close:
-	contextClose(hContext);
 
       out_close_file:	
 	close(fd);
+
+      out_close:
+	contextClose(hContext);
 
       out:
 	if ( data )
