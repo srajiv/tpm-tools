@@ -37,9 +37,6 @@ AM_CPPFLAGS		=	-I$(top_builddir)/include -D_LINUX -DLOCALEDIR=\"$(localedir)\"
 libtpm_utils_la_SOURCES	=	tpm_utils.c \
 				tpm_log.c
 
-libtpm_unseal_la_SOURCES =	tpm_unseal.c
-libtpm_unseal_la_LDFLAGS =	-ltspi
-
 #
 # TSPI interface library
 libtpm_tspi_la_SOURCES	=	tpm_tspi.c
@@ -53,3 +50,29 @@ noinst_LTLIBRARIES	+=	libtpm_pkcs11.la
 libtpm_pkcs11_la_SOURCES=	tpm_pkcs11.c
 libtpm_pkcs11_la_LIBADD	=	libtpm_utils.la
 endif
+
+#
+# Installed Libraries
+
+#
+# Libtool -version-info flag usage rules
+# This flag accepts an argument of the form current[:revision[:age]]. 
+# So, passing -version-info 3:12:1 sets current to 3, revision to 12, and age to 1.
+# If either revision or age are omitted, they default to 0. Also note that age must 
+# be less than or equal to the current interface number.
+# Here are a set of rules to help you update your library version information:
+#   1. Start with version information of 0:0:0 for each libtool library.
+#   2. Update the version information only immediately before a public release of your 
+#	software. More frequent updates are unnecessary, and only guarantee that the 
+#	current interface number gets larger faster.
+#   3. If the library source code has changed at all since the last update, then 
+#	increment revision (c:r:a becomes c:r+1:a).
+#   4. If any interfaces have been added, removed, or changed since the last update, 
+#	increment current, and set revision to 0.
+#   5. If any interfaces have been added since the last public release, then increment age.
+#   6. If any interfaces have been removed since the last public release, then set age to 0.  
+
+#
+# Unseal library - for addition to existing apps, counter part of seal cmd
+libtpm_unseal_la_SOURCES =	tpm_unseal.c
+libtpm_unseal_la_LDFLAGS =	-ltspi -shared -version-info 0:0:0

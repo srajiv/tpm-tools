@@ -22,7 +22,7 @@
 #ifndef __TPM_UNSEAL_H
 #define __TPM_UNSEAL_H
 
-int tpmUnsealKeyFile(char*, char**, int*);
+int tpmUnsealFile(char*, char**, int*);
 void tpmUnsealShred(char*, int);
 char* tpmUnsealStrerror(int, char*);
 

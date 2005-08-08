@@ -13,7 +13,7 @@ enum tpm_errors {
 	ENOTSSHDR = 0,
 	EWRONGTSSTAG,
 	EWRONGEVPTAG,
-	EWRONGSSLTAG,
+	EWRONGDATTAG,
 }; 
 
 enum tspi_errors {
@@ -48,16 +48,16 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 #define FOOTER "-----END TSS"
 #define TSS_TAG "-----TSS KEY-----"
 #define EVP_TAG "-----ENC KEY-----"
-#define SSL_TAG "-----SSL KEY-----"
+#define DAT_TAG "-----ENC DAT-----"
 #define POLICY_SECRET "password"
 static const TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
 static const char iv[8]="IBM SEAL";
 
 int tpm_errno;
 
-int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
+int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 
-	int rc, tmpLen=0, tssLen=0, evpLen=0, sslLen=0;
+	int rc, tmpLen=0, tssLen=0, evpLen=0, datLen=0;
 	char* rcPtr;
 	char data[MAX_LINE_LEN];
 	char tssKeyData[TSSKEY_DATA_LEN];
@@ -70,6 +70,12 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
         TSS_HPOLICY hPolicy;
         UINT32 symKeyLen;
         BYTE *symKey;
+
+	if ( tss_data == NULL || tss_size == NULL ) {
+		rc = -2;
+		tpm_errno = EINVAL;
+		goto tss_out;
+	}
 
 	if ((rc = stat(fname, &stats))) {
 		tpm_errno = errno;
@@ -84,10 +90,15 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
 
         /* test file header for TSS */
 	fgets(data, sizeof(data), fd);
-        if (strncmp(data, HEADER, strlen(HEADER)) != 0) { 
-		rc = -2;
-		tpm_errno = ENOTSSHDR;
-		goto tss_out_closefile;
+        if (strncmp(data, HEADER, strlen(HEADER)) != 0) {
+		*tss_data = malloc( stats.st_size );
+		if ( *tss_data == NULL ) {
+			rc = -1;
+			tpm_errno = ENOMEM;
+			goto tss_out;
+		}		
+		tss_size = fread(*tss_data, 1, stats.st_size, fd);
+		return 0;
 	}
 	tmpLen+=strlen(data);
 	fgets(data, sizeof(data), fd);
@@ -119,7 +130,7 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
 	tmpLen+=strlen(data);
         /* retrieve the sealed EVP symmetric key used for encryption */
        	while ( (rcPtr=fgets(data, sizeof(data), fd)) != NULL &&
-		strncmp(data, SSL_TAG, strlen(SSL_TAG)) !=0 ) {
+		strncmp(data, DAT_TAG, strlen(DAT_TAG)) !=0 ) {
 		int i = 0;
 		tmpLen+=strlen(data);
 		while (data[i] != '\0' && data[i] != '\n') {
@@ -132,7 +143,7 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
 
 	if ( rcPtr == NULL ) {
 		rc = -2;
-		tpm_errno = EWRONGSSLTAG;
+		tpm_errno = EWRONGDATTAG;
 		goto tss_out_closefile;
 	}
 
@@ -183,6 +194,7 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
 		goto tss_out_closeall;
 	}
 
+	/* This step will fail if tried on the wrong machine */
         if ((rc=Tspi_Context_LoadKeyByBlob(hContext, hSrk, tssLen, 
 					tssKeyData, &hKey)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBB;
@@ -208,34 +220,34 @@ int tpmUnsealKeyFile( char* fname, char** tssSslData, int* data_size ) {
 		goto tss_out_closeall;
 	}
 
-	*tssSslData = malloc(stats.st_size-tmpLen);
-	if ( *tssSslData == NULL ) {
+	*tss_data = malloc(stats.st_size-tmpLen);
+	if ( *tss_data == NULL ) {
 		rc = -1;
 		tpm_errno = ENOMEM;
 		goto tss_out_closeall;
 	}
-	*data_size = 0;
+	*tss_size = 0;
         /* Decrypt */
         EVP_CIPHER_CTX ctx;
         EVP_DecryptInit(&ctx, EVP_des_cbc(), symKey, iv);
-       	/* retrieve the encrypted SSL private key needed to start */
+       	/* retrieve the encrypted data needed */
         while (fgets(data, sizeof(data), fd) != NULL && 
 		strncmp(data, FOOTER, strlen(FOOTER)) != 0) {
 		int i = 0;
-		sslLen = 0;
+		datLen = 0;
                	while (data[i] != '\0' && data[i] != '\n') {
                         int val;
        	               	sscanf(data + i, "%02x", &val);
                         sprintf(data + (i/2), "%c", 0xFF & val);
        	               	i += 2;
-			sslLen++;
+			datLen++;
        	        }
-		EVP_DecryptUpdate(&ctx, (*tssSslData)+(*data_size), 
-					&tmpLen, data, sslLen);
-		(*data_size) += tmpLen;
+		EVP_DecryptUpdate(&ctx, (*tss_data)+(*tss_size), 
+					&tmpLen, data, datLen);
+		(*tss_size) += tmpLen;
         }
-        EVP_DecryptFinal(&ctx, (*tssSslData)+(*data_size), &tmpLen);
-	(*data_size) += tmpLen;
+        EVP_DecryptFinal(&ctx, (*tss_data)+(*tss_size), &tmpLen);
+	(*tss_size) += tmpLen;
 	
 tss_out_closeall:
 	Tspi_Context_Close(hContext);
@@ -247,8 +259,10 @@ tss_out:
 
 void tpmUnsealShred(char* data, int size) {
 
-	memset( data, 0, size);
-	free(data);
+	if ( data != NULL ) {
+		memset( data, 0, size);
+		free(data);
+	}
 
 }
 
@@ -261,14 +275,16 @@ char * tpmUnsealStrerror(int rc, char* str) {
 			return strerror(tpm_errno);
 		case -2:
 			switch(tpm_errno) {
+				case EINVAL:
+					return "Must pass in valid data and size pointers";
 				case ENOTSSHDR:
 					return "No TSS header present";
 				case EWRONGTSSTAG:
 					return "Wrong TSS tag";
 				case EWRONGEVPTAG:
 					return "Wrong EVP tag";
-				case EWRONGSSLTAG:
-					return "Wrong SSL tag";
+				case EWRONGDATTAG:
+					return "Wrong DATA tag";
 			}
 		default:
 			if ( str ) {
