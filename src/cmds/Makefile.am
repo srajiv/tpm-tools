@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-sbin_PROGRAMS 	=	seal_sens_data
+sbin_PROGRAMS 	=	tpm_sealdata
 
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 
@@ -29,4 +29,4 @@ AM_LDFLAGS	=	-ltspi
 
 LDADD		=	$(top_builddir)/lib/libtpm_tspi.la
 
-seal_sens_data_SOURCES = seal_sens_data.c
+tpm_sealdata_SOURCES = tpm_sealdata.c

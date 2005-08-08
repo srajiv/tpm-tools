@@ -91,15 +91,10 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
         /* test file header for TSS */
 	fgets(data, sizeof(data), fd);
         if (strncmp(data, HEADER, strlen(HEADER)) != 0) {
-		*tss_data = malloc( stats.st_size );
-		if ( *tss_data == NULL ) {
-			rc = -1;
-			tpm_errno = ENOMEM;
-			goto tss_out;
-		}		
-		tss_size = fread(*tss_data, 1, stats.st_size, fd);
-		return 0;
-	}
+		rc = -2;
+		tpm_errno = ENOTSSHDR;
+		goto tss_out;
+	}		
 	tmpLen+=strlen(data);
 	fgets(data, sizeof(data), fd);
 	if (strncmp(data, TSS_TAG, strlen(TSS_TAG)) != 0) {
