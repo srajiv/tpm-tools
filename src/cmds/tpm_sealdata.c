@@ -61,7 +61,7 @@ static void help(const char *aCmd)
 #define POLICY_SECRET "password"
 
 static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX]="";
-static const char iv[8] = "IBM SEAL";
+static const char iv[16] = "IBM SEALIBM SEA\0";
 static TSS_HPCRS hPcrs = NULL_HPCRS;
 static TSS_HCONTEXT hContext;
 static TSS_HTPM hTpm;
@@ -131,12 +131,13 @@ int main(int argc, char **argv)
 	int encDataLen;
 	UINT32 encLen;
 	BYTE* encKey;
-	BYTE* randKey;
+	BYTE* randKey = NULL;
 	UINT32 sealKeyLen;
 	BYTE* sealKey;
 	TSS_FLAG keyFlags = TSS_KEY_TYPE_STORAGE | TSS_KEY_SIZE_2048  |
 				TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
 				TSS_KEY_NOT_MIGRATABLE;
+
         initIntlSys();
 
 	if (contextCreate(&hContext) != TSS_SUCCESS)
@@ -174,7 +175,7 @@ int main(int argc, char **argv)
 	}
 
 	data = malloc( stat_buf.st_size );
-	encData = malloc( stat_buf.st_size + EVP_CIPHER_block_size(EVP_desx_cbc()));
+	encData = malloc( stat_buf.st_size + EVP_CIPHER_block_size(EVP_aes_256_cbc()));
 	if ( !data || ! encData ) {
 		logError(_("Out of memory\n"));
 		goto out_close_file;
@@ -186,13 +187,13 @@ int main(int argc, char **argv)
 		goto out_close_file;
 	}
 
-	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_desx_cbc()), 
+	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_aes_256_cbc()), 
 			&randKey) != TSS_SUCCESS)
 		goto out_close_file;
 
 	EVP_CIPHER_CTX ctx;
 	int tmpLen;
-	EVP_EncryptInit(&ctx, EVP_des_cbc(), randKey, iv);
+	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, iv);
 	EVP_EncryptUpdate(&ctx, encData, &tmpLen, data, len);
 	encDataLen = tmpLen;
 	EVP_EncryptFinal(&ctx, encData+encDataLen, &tmpLen);
@@ -227,7 +228,7 @@ int main(int argc, char **argv)
 	if (policySetSecret(hPolicy, strlen(POLICY_SECRET), POLICY_SECRET) != TSS_SUCCESS)
 		goto out_close_file;
 
-	if (dataSeal(hEncdata, hKey, 24, randKey, hPcrs) != TSS_SUCCESS)
+	if (dataSeal(hEncdata, hKey, EVP_CIPHER_key_length(EVP_aes_256_cbc()), randKey, hPcrs) != TSS_SUCCESS)
 		goto out_close_file;	
 
 	if (getAttribData(hEncdata, TSS_TSPATTRIB_ENCDATA_BLOB,
@@ -265,8 +266,9 @@ int main(int argc, char **argv)
 		fprintf(file, "%02x", 0xFF & encData[i]);
 		if (! ((i+1) % 32 ))
 			fprintf(file, "\n");
-	}	
-	fprintf(file, "\n");
+	}
+	if ( encDataLen % 32 )
+		fprintf(file, "\n");
 	fprintf(file, "%s%s%s\n", END_STRING, TSS_STRING, DASH_STRING);
 	
 	iRc = 0;

@@ -43,7 +43,7 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 
 #define MAX_LINE_LEN 66
 #define TSSKEY_DATA_LEN 559
-#define EVPKEY_DATA_LEN 268
+#define EVPKEY_DATA_LEN 312
 #define HEADER "-----BEGIN TSS"
 #define FOOTER "-----END TSS"
 #define TSS_TAG "-----TSS KEY-----"
@@ -51,17 +51,18 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 #define DAT_TAG "-----ENC DAT-----"
 #define POLICY_SECRET "password"
 static const TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
-static const char iv[8]="IBM SEAL";
+static const char iv[16]="IBM SEALIBM SEA\0";
 
 int tpm_errno;
 
 int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 
-	int rc, tmpLen=0, tssLen=0, evpLen=0, datLen=0;
+	int i, rc, tmpLen=0, tssLen=0, evpLen=0, datLen=0;
 	char* rcPtr;
 	char data[MAX_LINE_LEN];
 	char tssKeyData[TSSKEY_DATA_LEN];
 	char evpKeyData[EVPKEY_DATA_LEN];
+	char *encData = NULL;
 	FILE* fd;
 	struct stat stats;
         TSS_HCONTEXT hContext;
@@ -216,7 +217,8 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	}
 
 	*tss_data = malloc(stats.st_size-tmpLen);
-	if ( *tss_data == NULL ) {
+	encData = malloc(stats.st_size - tmpLen);
+	if ( *tss_data == NULL || encData == NULL ) {
 		rc = -1;
 		tpm_errno = ENOMEM;
 		goto tss_out_closeall;
@@ -224,7 +226,7 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	*tss_size = 0;
         /* Decrypt */
         EVP_CIPHER_CTX ctx;
-        EVP_DecryptInit(&ctx, EVP_des_cbc(), symKey, iv);
+        EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, iv);
        	/* retrieve the encrypted data needed */
         while (fgets(data, sizeof(data), fd) != NULL && 
 		strncmp(data, FOOTER, strlen(FOOTER)) != 0) {
@@ -233,22 +235,24 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
                	while (data[i] != '\0' && data[i] != '\n') {
                         int val;
        	               	sscanf(data + i, "%02x", &val);
-                        sprintf(data + (i/2), "%c", 0xFF & val);
+                        sprintf(encData + datLen, "%c", 0xFF & val);
        	               	i += 2;
 			datLen++;
        	        }
 		EVP_DecryptUpdate(&ctx, (*tss_data)+(*tss_size), 
-					&tmpLen, data, datLen);
+					&tmpLen, encData, datLen);
 		(*tss_size) += tmpLen;
         }
         EVP_DecryptFinal(&ctx, (*tss_data)+(*tss_size), &tmpLen);
 	(*tss_size) += tmpLen;
-	
+
 tss_out_closeall:
 	Tspi_Context_Close(hContext);
 tss_out_closefile:
 	fclose(fd);
 tss_out:
+	if ( encData )
+		free( encData );
 	return rc;
 }
 
