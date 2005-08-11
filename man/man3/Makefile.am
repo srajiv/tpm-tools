@@ -21,4 +21,8 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-SUBDIRS = man1 man3 man8
+man3_MANS	=	tpmUnsealFile.3		\
+			tpmUnsealShred.3	\
+			tpmUnsealStrerror.3
+
+EXTRA_DIST = $(man3_MANS)

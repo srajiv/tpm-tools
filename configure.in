@@ -105,5 +105,6 @@ AC_CONFIG_FILES(./Makefile		\
 		src/data_mgmt/Makefile  \
 		man/Makefile            \
 		man/man1/Makefile       \
+		man/man3/Makefile       \
 		man/man8/Makefile)
 AC_OUTPUT

@@ -21,7 +21,8 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-man1_MANS	=	tpm_version.1		\
+man1_MANS	=	tpm_sealdata.1		\
+			tpm_version.1		\
 			tpmtoken_init.1		\
 			tpmtoken_import.1	\
 			tpmtoken_objects.1	\
