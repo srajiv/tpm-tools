@@ -44,19 +44,21 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 };
 
 #define MAX_LINE_LEN 66
-#define TSSKEY_DATA_LEN 559
-#define EVPKEY_DATA_LEN 312
+#define TSSKEY_DEFAULT_SIZE 559
+#define EVPKEY_DEFAULT_SIZE 312
 static const TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
 
 int tpm_errno;
 
-int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
+int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
 	int i, rc, tmpLen=0, tssLen=0, evpLen=0, datLen=0;
 	char* rcPtr;
 	char data[MAX_LINE_LEN];
-	char tssKeyData[TSSKEY_DATA_LEN];
-	char evpKeyData[EVPKEY_DATA_LEN];
+	char *tssKeyData = NULL;
+	int tssKeyDataSize = 0;
+	char *evpKeyData = NULL;
+	int evpKeyDataSize = 0;
 	FILE* fd;
 	struct stat stats;
         TSS_HCONTEXT hContext;
@@ -66,11 +68,17 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
         UINT32 symKeyLen;
         BYTE *symKey;
 
+	unsigned char* res_data;
+	int res_size;
+
 	if ( tss_data == NULL || tss_size == NULL ) {
 		rc = -2;
 		tpm_errno = EINVAL;
 		goto tss_out;
 	}
+
+	*tss_data = NULL;
+	*tss_size = 0;
 
 	if ((rc = stat(fname, &stats))) {
 		tpm_errno = errno;
@@ -90,19 +98,42 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		tpm_errno = ENOTSSHDR;
 		goto tss_out;
 	}		
-	tmpLen+=strlen(data);
+	tmpLen+=strlen(data); //TSS_HEADER
+
 	fgets(data, sizeof(data), fd);
 	if (strncmp(data, TPMSEAL_TSS_STRING, strlen(TPMSEAL_TSS_STRING)) != 0) {
 		rc = -2;
 		tpm_errno = EWRONGTSSTAG;
 		goto tss_out_closefile;
 	}
-	tmpLen+=strlen(data);
+	tmpLen+=strlen(data); //TSS_STRING
+
       	/* retrieve the TSS key used to Seal */
+	if ( (tssKeyData = malloc( TSSKEY_DEFAULT_SIZE )) == NULL) {
+		tpm_errno = ENOMEM;
+		rc = -1;
+		goto tss_out_closefile;
+	}
+
+	tssKeyDataSize = TSSKEY_DEFAULT_SIZE;
+
         while ((rcPtr = fgets(data, sizeof(data), fd)) != NULL &&
 		strncmp( data, TPMSEAL_EVP_STRING, strlen(TPMSEAL_EVP_STRING)) != 0 ) {
 		int i = 0;
-		tmpLen+=strlen(data);
+		tmpLen+=strlen(data); //Line of data
+
+		if ( ( tssLen + strlen(data)/2 ) > tssKeyDataSize ) {
+			printf( "Realloc req: %d %d %d\n", tssLen, strlen(data), tssKeyDataSize);
+			rcPtr = realloc( tssKeyData, tssKeyDataSize + strlen(data));
+			if ( rcPtr == NULL ) {
+				tpm_errno = ENOMEM;
+				rc = -1;
+				goto tss_out_closefile;
+			}
+			tssKeyData = rcPtr;
+			tssKeyDataSize += strlen(data);
+		}
+
                 while (data[i] != '\0' && data[i] != '\n' ) {
        	               	int val;
 			sscanf(data + i, "%02x", &val);
@@ -116,6 +147,7 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		tpm_errno = EWRONGEVPTAG;
 		goto tss_out_closefile;
 	}
+	tmpLen+= strlen(data);  //EVP_STRING
 
 	fgets(data, sizeof(data), fd);
 	if( strncmp(data, TPMSEAL_KEYTYPE_SYM, strlen(TPMSEAL_KEYTYPE_SYM)) != 0 ) {
@@ -123,13 +155,34 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		tpm_errno = EWRONGKEYTYPE;
 		goto tss_out_closefile;
 	}
+	tmpLen+=strlen(data); //KEYTYPE_STRING
 
-	tmpLen+=strlen(data);
         /* retrieve the sealed EVP symmetric key used for encryption */
+	if ( (evpKeyData = malloc( EVPKEY_DEFAULT_SIZE )) == NULL) {
+		tpm_errno = ENOMEM;
+		rc = -1;
+		goto tss_out_closefile;
+	}
+
+	evpKeyDataSize = EVPKEY_DEFAULT_SIZE;
+
        	while ( (rcPtr=fgets(data, sizeof(data), fd)) != NULL &&
 		strncmp(data, TPMSEAL_ENC_STRING, strlen(TPMSEAL_ENC_STRING)) !=0 ) {
 		int i = 0;
-		tmpLen+=strlen(data);
+		tmpLen+=strlen(data); //Line of data
+
+		if ( ( evpLen + strlen(data)/2 ) > evpKeyDataSize ) {
+			printf( "Realloc req %d %d %d\n", evpLen, strlen(data), evpKeyDataSize);
+			rcPtr = realloc( evpKeyData, evpKeyDataSize + strlen(data));
+			if ( rcPtr == NULL ) {
+				tpm_errno = ENOMEM;
+				rc = -1;
+				goto tss_out_closefile;
+			}
+			evpKeyData = rcPtr;
+			evpKeyDataSize += strlen(data);
+		}
+
 		while (data[i] != '\0' && data[i] != '\n') {
 			int val;
 			sscanf(data + i, "%02x", &val);
@@ -144,7 +197,7 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		goto tss_out_closefile;
 	}
 
-	tmpLen+=strlen(data);
+	tmpLen+=strlen(data); //ENC_STRING
 	/* Unseal */
 	if ((rc=Tspi_Context_Create(&hContext)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXCREAT;
@@ -217,13 +270,13 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		goto tss_out_closeall;
 	}
 
-	*tss_data = malloc(stats.st_size-tmpLen);
-	if ( *tss_data == NULL ) {
+	res_data = malloc(stats.st_size-tmpLen);
+	if ( res_data == NULL ) {
 		rc = -1;
 		tpm_errno = ENOMEM;
 		goto tss_out_closeall;
 	}
-	*tss_size = 0;
+	res_size = 0;
         /* Decrypt */
         EVP_CIPHER_CTX ctx;
         EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, TPMSEAL_IV);
@@ -239,22 +292,32 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
        	               	i += 2;
 			datLen++;
        	        }
-		EVP_DecryptUpdate(&ctx, (*tss_data)+(*tss_size), 
+		EVP_DecryptUpdate(&ctx, res_data+res_size, 
 					&tmpLen, data, datLen);
-		(*tss_size) += tmpLen;
+		res_size += tmpLen;
         }
-        EVP_DecryptFinal(&ctx, (*tss_data)+(*tss_size), &tmpLen);
-	(*tss_size) += tmpLen;
+        EVP_DecryptFinal(&ctx, res_data+res_size, &tmpLen);
+	res_size += tmpLen;
 
 tss_out_closeall:
 	Tspi_Context_Close(hContext);
 tss_out_closefile:
 	fclose(fd);
 tss_out:
+
+	if ( evpKeyData )
+		free(evpKeyData);
+	if ( tssKeyData )
+		free(tssKeyData);
+
+	if ( rc  == 0 ) {
+		*tss_data = res_data;
+		*tss_size = res_size;
+	}
 	return rc;
 }
 
-void tpmUnsealShred(char* data, int size) {
+void tpmUnsealShred(unsigned char* data, int size) {
 
 	if ( data != NULL ) {
 		memset( data, 0, size);
@@ -263,7 +326,8 @@ void tpmUnsealShred(char* data, int size) {
 
 }
 
-char * tpmUnsealStrerror(int rc, char* str) {
+char tpm_error_buf[512];
+char * tpmUnsealStrerror(int rc) {
 
 	switch(rc) {
 		case 0:
@@ -273,30 +337,27 @@ char * tpmUnsealStrerror(int rc, char* str) {
 		case -2:
 			switch(tpm_errno) {
 				case EINVAL:
-					return "Must pass in valid data and size pointers";
+					return ("Must pass in valid data and size pointers");
 				case ENOTSSHDR:
-					return "No TSS header present";
+					return ("No TSS header present");
 				case EWRONGTSSTAG:
-					return "Wrong TSS tag";
+					return ("Wrong TSS tag");
 				case EWRONGEVPTAG:
-					return "Wrong EVP tag";
+					return ("Wrong EVP tag");
 				case EWRONGDATTAG:
-					return "Wrong DATA tag";
+					return ("Wrong DATA tag");
 				case EWRONGKEYTYPE:
-					return "Not a Symmetric EVP Key";
+					return ("Not a Symmetric EVP Key");
 			}
 		default:
-			if ( str ) {
-				sprintf(str, 
-					"%s: 0x%08x - layer=%s, code=%04x (%d), %s", 
-					tspi_error_strings[tpm_errno],
-					rc, Trspi_Error_Layer(rc), 
-					Trspi_Error_Code(rc), 
-					Trspi_Error_Code(rc), 
-					Trspi_Error_String(rc)); 
-				return str;
-			}
-			return tspi_error_strings[tpm_errno];
+			snprintf(tpm_error_buf, sizeof(tpm_error_buf), 
+				"%s: 0x%08x - layer=%s, code=%04x (%d), %s", 
+				tspi_error_strings[tpm_errno],
+				rc, Trspi_Error_Layer(rc), 
+				Trspi_Error_Code(rc), 
+				Trspi_Error_Code(rc), 
+				Trspi_Error_String(rc)); 
+			return tpm_error_buf;
 	}
 	return "";
 }

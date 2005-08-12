@@ -22,8 +22,8 @@
 #ifndef __TPM_UNSEAL_H
 #define __TPM_UNSEAL_H
 
-int tpmUnsealFile(char*, char**, int*);
-void tpmUnsealShred(char*, int);
-char* tpmUnsealStrerror(int, char*);
+int tpmUnsealFile(char*, unsigned char**, int*);
+void tpmUnsealShred(unsigned char*, int);
+char* tpmUnsealStrerror(int);
 
 #endif
