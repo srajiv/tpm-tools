@@ -20,7 +20,7 @@
 #       along with this program; if not, a copy can be viewed at
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
-unsealincludedir = $(includedir)/tpm_unseal
+unsealincludedir = $(includedir)/tpm_tools
 
 unsealinclude_HEADERS = tpm_unseal.h
 

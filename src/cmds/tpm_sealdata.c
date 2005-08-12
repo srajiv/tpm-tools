@@ -18,22 +18,24 @@
  * along with this program; if not, a copy can be viewed at
  * http://www.opensource.org/licenses/cpl1.0.php.
  */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <openssl/evp.h>
+#include <limits.h>
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
-#include <openssl/evp.h>
+#include "tpm_seal.h"
 
-static inline TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey, TSS_HPCRS a_hPcrs )
+static inline TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey,
+				      TSS_HPCRS a_hPcrs)
 {
-	TSS_RESULT result = 
-		Tspi_Key_CreateKey(a_hKey, a_hWrapKey, a_hPcrs);
+	TSS_RESULT result =
+	    Tspi_Key_CreateKey(a_hKey, a_hWrapKey, a_hPcrs);
 	tspiResult("Tspi_Key_CreateKey", result);
 	return result;
 }
 
-static inline TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey, UINT32 a_len, BYTE* a_data, TSS_HPCRS a_hPcrs)
+static inline TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
+				  UINT32 a_len, BYTE * a_data,
+				  TSS_HPCRS a_hPcrs)
 {
 
 	TSS_RESULT result =
@@ -43,70 +45,70 @@ static inline TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey, UINT
 	return result;
 }
 
-static void help(const char *aCmd) 
+static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
-	logCmdOption("-f, --filename", _("Filename containing key to seal"));
-	logCmdOption("-o, --output", _("Filename to write sealed key to.  Default is the same as the input file"));
-	logCmdOption("-p, --pcr", _("Pcrs to seal data to.  Default is none"));
+	logCmdOption("-i, --infile FILE",
+		     _
+		     ("Filename containing key to seal. Default is STDIN."));
+	logCmdOption("-o, --outfile FILE",
+		     _
+		     ("Filename to write sealed key to.  Default is STDOUT."));
+	logCmdOption("-p, --pcr NUMBER",
+		     _
+		     ("PCR to seal data to.  Default is none.  This option can be specified multiple times to choose more than one PCR."));
 
 }
-#define PATH_MAX 256
-#define TSS_STRING "TSS"
-#define BEGIN_STRING "-----BEGIN "
-#define END_STRING "-----END "
-#define DASH_STRING "-----"
-#define TSS_HEADER "BEGIN TSS"
 
-#define POLICY_SECRET "password"
-
-static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX]="";
-static const char iv[16] = "IBM SEALIBM SEA\0";
+static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX] = "";
 static TSS_HPCRS hPcrs = NULL_HPCRS;
 static TSS_HCONTEXT hContext;
 static TSS_HTPM hTpm;
 
-static int parse(const int aOpt, const char* aArg) 
+static int parse(const int aOpt, const char *aArg)
 {
 	int rc = -1;
 	UINT32 pcr_idx;
-	BYTE* pcr_idx_val;
+	BYTE *pcr_idx_val;
 	UINT32 pcr_siz;
-	
-	switch(aOpt) {
-		case 'f':
-			if ( aArg ) {
-				strncpy(in_filename, aArg, PATH_MAX);
-				rc = 0;
-			}
-			break;
-		case 'o':
-			if( aArg ) {
-				strncpy(out_filename, aArg, PATH_MAX);
-				rc = 0;
-			}
-			break;
-		case 'p':
-			if ( aArg ) {
-				if ( hPcrs == NULL_HPCRS) {
-					if(Tspi_Context_CreateObject(hContext, 
-								TSS_OBJECT_TYPE_PCRS, 
-								0, &hPcrs) != TSS_SUCCESS)
-						break;
-				}
-				pcr_idx = atoi(aArg);
-				if (Tspi_TPM_PcrRead(hTpm, pcr_idx, &pcr_siz, 
-							&pcr_idx_val) != TSS_SUCCESS)
-					break;
 
-				if (Tspi_PcrComposite_SetPcrValue(hPcrs, pcr_idx, 
-								pcr_siz, pcr_idx_val) 
-						!= TSS_SUCCESS)
+	switch (aOpt) {
+	case 'i':
+		if (aArg) {
+			strncpy(in_filename, aArg, PATH_MAX);
+			rc = 0;
+		}
+		break;
+	case 'o':
+		if (aArg) {
+			strncpy(out_filename, aArg, PATH_MAX);
+			rc = 0;
+		}
+		break;
+	case 'p':
+		if (aArg) {
+			if (hPcrs == NULL_HPCRS) {
+				if (Tspi_Context_CreateObject(hContext,
+							      TSS_OBJECT_TYPE_PCRS,
+							      0,
+							      &hPcrs) !=
+				    TSS_SUCCESS)
 					break;
-
-				rc = 0;
 			}
-			break;
+			pcr_idx = atoi(aArg);
+			if (Tspi_TPM_PcrRead(hTpm, pcr_idx, &pcr_siz,
+					     &pcr_idx_val) != TSS_SUCCESS)
+				break;
+
+			if (Tspi_PcrComposite_SetPcrValue(hPcrs, pcr_idx,
+							  pcr_siz,
+							  pcr_idx_val)
+			    != TSS_SUCCESS)
+				break;
+
+			rc = 0;
+		}
+		break;
 	}
 	return rc;
 
@@ -119,26 +121,26 @@ int main(int argc, char **argv)
 	TSS_HENCDATA hEncdata;
 	TSS_HPOLICY hPolicy;
 	int iRc = -1;
-	struct option opts[] = { {"filename", required_argument, NULL, 'f'},
-				{ "output", required_argument, NULL, 'o'},
-				{ "pcr", required_argument, NULL, 'p'} };
-	FILE *file;
-	struct stat stat_buf;
-	int fd, len, i;
-	char line[66];
-	char *data = NULL;
-	char *encData = NULL;
+	struct option opts[] =
+	    { {"infile", required_argument, NULL, 'i'},
+	{"outfile", required_argument, NULL, 'o'},
+	{"pcr", required_argument, NULL, 'p'}
+	};
+	FILE *ifile = NULL, *ofile = NULL;
+	int len = 0, i;
+	char line[66];		/* 64 data \n \0 */
+	char encData[64];
 	int encDataLen;
 	UINT32 encLen;
-	BYTE* encKey;
-	BYTE* randKey = NULL;
+	BYTE *encKey;
+	BYTE *randKey = NULL;
 	UINT32 sealKeyLen;
-	BYTE* sealKey;
-	TSS_FLAG keyFlags = TSS_KEY_TYPE_STORAGE | TSS_KEY_SIZE_2048  |
-				TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
-				TSS_KEY_NOT_MIGRATABLE;
+	BYTE *sealKey;
+	TSS_FLAG keyFlags = TSS_KEY_TYPE_STORAGE | TSS_KEY_SIZE_2048 |
+	    TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
+	    TSS_KEY_NOT_MIGRATABLE;
 
-        initIntlSys();
+	initIntlSys();
 
 	if (contextCreate(&hContext) != TSS_SUCCESS)
 		goto out;
@@ -149,145 +151,147 @@ int main(int argc, char **argv)
 	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
 		goto out_close;
 
-	if (genericOptHandler(argc, argv, "f:o:p:", opts, 
-		sizeof(opts)/sizeof(struct option), parse, help) != 0) {
+	if (genericOptHandler(argc, argv, "i:o:p:", opts,
+			      sizeof(opts) / sizeof(struct option), parse,
+			      help) != 0) {
 		logError(_("Invalid option\n"));
 		goto out_close;
 	}
-	if( (file = fopen( in_filename, "r")) < 0) {
-		logError(_("Unable to open input file: %s\n"), in_filename);
+
+	if (strlen(in_filename) == 0)
+		ifile = stdin;
+	else if ((ifile = fopen(in_filename, "r")) < 0) {
+		logError(_("Unable to open input file: %s\n"),
+			 in_filename);
 		goto out_close;
 	}
 
-	if ( stat(in_filename, &stat_buf) != 0 ) {
-		logError(_("Unable to stat input file: %s\n"), in_filename);
-		goto out_close_file;
-	}
-
-	if ( !fgets(line, sizeof(line), file) ) {
+	if (!fgets(line, sizeof(line), ifile)) {
 		logError(_("Unable to retrieve header.\n"));
-		goto out_close_file;
+		goto out_stream_close;
 	}
 
-	if ( strstr(line, TSS_HEADER) ) {
+	if ( strcmp(line, TPMSEAL_HDR_STRING) == 0 ) {
 		logError(_("Invalid header: file already sealed\n"));
-		goto out_close_file;
+		goto out_stream_close;
 	}
 
-	data = malloc( stat_buf.st_size );
-	encData = malloc( stat_buf.st_size + EVP_CIPHER_block_size(EVP_aes_256_cbc()));
-	if ( !data || ! encData ) {
-		logError(_("Out of memory\n"));
-		goto out_close_file;
-	}
-	
-	fseek(file, 0, SEEK_SET);
-	if ( (len = fread( data, 1, stat_buf.st_size, file)) < 0 ) {
-		logError(_("Unable to read data.\n"));
-		goto out_close_file;
-	}
+	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
+			 &randKey) != TSS_SUCCESS)
+		goto out_stream_close;
 
-	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_aes_256_cbc()), 
-			&randKey) != TSS_SUCCESS)
-		goto out_close_file;
+	if (keyLoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, SRK_UUID, &hSrk)
+	    != TSS_SUCCESS)
+		goto out_stream_close;
 
-	EVP_CIPHER_CTX ctx;
-	int tmpLen;
-	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, iv);
-	EVP_EncryptUpdate(&ctx, encData, &tmpLen, data, len);
-	encDataLen = tmpLen;
-	EVP_EncryptFinal(&ctx, encData+encDataLen, &tmpLen);
-	encDataLen += tmpLen;
-
-	if (keyLoadKeyByUUID(hContext,TSS_PS_TYPE_SYSTEM,SRK_UUID,&hSrk) != TSS_SUCCESS)
-		goto out_close_file;
-
-	if (contextCreateObject(hContext, TSS_OBJECT_TYPE_RSAKEY, keyFlags, &hKey) != TSS_SUCCESS)
-		goto out_close_file;
+	if (contextCreateObject
+	    (hContext, TSS_OBJECT_TYPE_RSAKEY, keyFlags,
+	     &hKey) != TSS_SUCCESS)
+		goto out_stream_close;
 
 	if (policyGet(hKey, &hPolicy) != TSS_SUCCESS)
-		goto out_close_file;
-	
-	if (policySetSecret(hPolicy, strlen(POLICY_SECRET), POLICY_SECRET) != TSS_SUCCESS)
-		goto out_close_file;
+		goto out_stream_close;
 
-	if(keyCreateKey(hKey, hSrk, NULL_HPCRS) != TSS_SUCCESS)
-		goto out_close_file;
+	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), TPMSEAL_SECRET)
+	    != TSS_SUCCESS)
+		goto out_stream_close;
+
+	if (keyCreateKey(hKey, hSrk, NULL_HPCRS) != TSS_SUCCESS)
+		goto out_stream_close;
 
 	if (keyLoadKey(hKey, hSrk) != TSS_SUCCESS)
-		goto out_close_file;	
+		goto out_stream_close;
 
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_ENCDATA, TSS_ENCDATA_SEAL,
 	     &hEncdata) != TSS_SUCCESS)
-		goto out_close_file;
+		goto out_stream_close;
 
 	if (policyGet(hEncdata, &hPolicy) != TSS_SUCCESS)
-		goto out_close_file;
-	
-	if (policySetSecret(hPolicy, strlen(POLICY_SECRET), POLICY_SECRET) != TSS_SUCCESS)
-		goto out_close_file;
+		goto out_stream_close;
 
-	if (dataSeal(hEncdata, hKey, EVP_CIPHER_key_length(EVP_aes_256_cbc()), randKey, hPcrs) != TSS_SUCCESS)
-		goto out_close_file;	
+	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), TPMSEAL_SECRET)
+	    != TSS_SUCCESS)
+		goto out_stream_close;
+
+	if (dataSeal
+	    (hEncdata, hKey, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
+	     randKey, hPcrs) != TSS_SUCCESS)
+		goto out_stream_close;
 
 	if (getAttribData(hEncdata, TSS_TSPATTRIB_ENCDATA_BLOB,
- 			  TSS_TSPATTRIB_ENCDATABLOB_BLOB, &encLen, 
+			  TSS_TSPATTRIB_ENCDATABLOB_BLOB, &encLen,
 			  &encKey) != TSS_SUCCESS)
-		goto out_close_file;
+		goto out_stream_close;
 
-	if (getAttribData(hKey, TSS_TSPATTRIB_KEY_BLOB, TSS_TSPATTRIB_KEYBLOB_BLOB, 
-				&sealKeyLen, &sealKey) != TSS_SUCCESS)
-		goto out_close_file;
-	if ( strlen(out_filename) == 0 )
-		file = stdout;
-	else if (!(file = fopen(out_filename, "w+"))) {
-		logError(_("Unable to open output file: %s\n"), out_filename);
+	if (getAttribData
+	    (hKey, TSS_TSPATTRIB_KEY_BLOB, TSS_TSPATTRIB_KEYBLOB_BLOB,
+	     &sealKeyLen, &sealKey) != TSS_SUCCESS)
+		goto out_stream_close;
+
+	if (strlen(out_filename) == 0)
+		ofile = stdout;
+	else if (!(ofile = fopen(out_filename, "w+"))) {
+		logError(_("Unable to open output file: %s\n"),
+			 out_filename);
 		goto out_stream_close;
 	}
-	
-	fprintf(file, "%s%s%s\n", BEGIN_STRING, TSS_STRING, DASH_STRING);
-	fprintf(file, "-----TSS KEY-----\n");
-	for(i=0; i<sealKeyLen; i++) {
-		fprintf( file, "%02x", 0xFF & sealKey[i]);
-		if ( ! ((i+1) %32 ))
-			fprintf(file, "\n");
+
+	fprintf(ofile, "%s\n", TPMSEAL_HDR_STRING);
+	fprintf(ofile, "%s\n", TPMSEAL_TSS_STRING); 
+	for (i = 0; i < sealKeyLen; i++) {
+		fprintf(ofile, "%02x", 0xFF & sealKey[i]);
+		if (!((i + 1) % 32))
+			fprintf(ofile, "\n");
 	}
-	fprintf(file, "\n");
-	fprintf(file, "-----ENC KEY-----\n");
-	for(i=0; i< encLen; i++) {
-		fprintf( file, "%02x", 0xFF & encKey[i]);
-		if (! ((i+1) % 32 ))
-			fprintf(file, "\n");
+	fprintf(ofile, "\n");
+	fprintf(ofile, "%s\n", TPMSEAL_EVP_STRING);
+	fprintf(ofile, "%s: %s\n", TPMSEAL_KEYTYPE_SYM, TPMSEAL_CIPHER_AES256CBC);
+	for (i = 0; i < encLen; i++) {
+		fprintf(ofile, "%02x", 0xFF & encKey[i]);
+		if (!((i + 1) % 32))
+			fprintf(ofile, "\n");
 	}
-	fprintf(file, "\n");
-	fprintf(file, "-----ENC DAT-----\n");
-	for(i=0; i<encDataLen; i++) {
-		fprintf(file, "%02x", 0xFF & encData[i]);
-		if (! ((i+1) % 32 ))
-			fprintf(file, "\n");
+	fprintf(ofile, "\n");
+	fprintf(ofile, "%s\n", TPMSEAL_ENC_STRING); 
+
+	EVP_CIPHER_CTX ctx;
+	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, TPMSEAL_IV);
+
+	do {
+		EVP_EncryptUpdate(&ctx, encData, &encDataLen,
+				  line, strlen(line));
+		for (i = 0; i < encDataLen; i++, len++) {
+			fprintf(ofile, "%02x", 0xFF & encData[i]);
+			if (!((len + 1) % 32))
+				fprintf(ofile, "\n");
+		}
+	} while (fread(line, 1, sizeof(line), ifile) > 0);
+
+	EVP_EncryptFinal(&ctx, encData, &encDataLen);
+	for (i = 0; i < encDataLen; i++, len++) {
+		fprintf(ofile, "%02x", 0xFF & encData[i]);
+		if (!((len + 1) % 32))
+			fprintf(ofile, "\n");
 	}
-	if ( encDataLen % 32 )
-		fprintf(file, "\n");
-	fprintf(file, "%s%s%s\n", END_STRING, TSS_STRING, DASH_STRING);
-	
+	if (len % 32)
+		fprintf(ofile, "\n");
+
+	fprintf(ofile, "%s\n", TPMSEAL_FTR_STRING);
+
 	iRc = 0;
 	logSuccess(argv[0]);
 
       out_stream_close:
-	if ( file && file != stdout )
-		fclose(file);
+	if (ifile && ifile != stdout)
+		fclose(ifile);
 
-      out_close_file:	
-	close(fd);
+	if (ofile && ofile != stdout)
+		fclose(ofile);
 
       out_close:
 	contextClose(hContext);
 
       out:
-	if ( data )
-		free( data );
-	if ( encData )
-		free( encData );
 	return iRc;
 }

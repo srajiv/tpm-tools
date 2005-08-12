@@ -1,3 +1,4 @@
+#include "tpm_seal.h"
 #include "tpm_unseal.h"
 #include <trousers/tss.h>
 #include <trousers/trousers.h>
@@ -14,6 +15,7 @@ enum tpm_errors {
 	EWRONGTSSTAG,
 	EWRONGEVPTAG,
 	EWRONGDATTAG,
+	EWRONGKEYTYPE,
 }; 
 
 enum tspi_errors {
@@ -44,14 +46,7 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 #define MAX_LINE_LEN 66
 #define TSSKEY_DATA_LEN 559
 #define EVPKEY_DATA_LEN 312
-#define HEADER "-----BEGIN TSS"
-#define FOOTER "-----END TSS"
-#define TSS_TAG "-----TSS KEY-----"
-#define EVP_TAG "-----ENC KEY-----"
-#define DAT_TAG "-----ENC DAT-----"
-#define POLICY_SECRET "password"
 static const TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
-static const char iv[16]="IBM SEALIBM SEA\0";
 
 int tpm_errno;
 
@@ -62,7 +57,6 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	char data[MAX_LINE_LEN];
 	char tssKeyData[TSSKEY_DATA_LEN];
 	char evpKeyData[EVPKEY_DATA_LEN];
-	char *encData = NULL;
 	FILE* fd;
 	struct stat stats;
         TSS_HCONTEXT hContext;
@@ -91,14 +85,14 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 
         /* test file header for TSS */
 	fgets(data, sizeof(data), fd);
-        if (strncmp(data, HEADER, strlen(HEADER)) != 0) {
+        if (strncmp(data, TPMSEAL_HDR_STRING, strlen(TPMSEAL_HDR_STRING)) != 0) {
 		rc = -2;
 		tpm_errno = ENOTSSHDR;
 		goto tss_out;
 	}		
 	tmpLen+=strlen(data);
 	fgets(data, sizeof(data), fd);
-	if (strncmp(data, TSS_TAG, strlen(TSS_TAG)) != 0) {
+	if (strncmp(data, TPMSEAL_TSS_STRING, strlen(TPMSEAL_TSS_STRING)) != 0) {
 		rc = -2;
 		tpm_errno = EWRONGTSSTAG;
 		goto tss_out_closefile;
@@ -106,7 +100,7 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	tmpLen+=strlen(data);
       	/* retrieve the TSS key used to Seal */
         while ((rcPtr = fgets(data, sizeof(data), fd)) != NULL &&
-		strncmp( data, EVP_TAG, strlen(EVP_TAG)) != 0 ) {
+		strncmp( data, TPMSEAL_EVP_STRING, strlen(TPMSEAL_EVP_STRING)) != 0 ) {
 		int i = 0;
 		tmpLen+=strlen(data);
                 while (data[i] != '\0' && data[i] != '\n' ) {
@@ -123,10 +117,17 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		goto tss_out_closefile;
 	}
 
+	fgets(data, sizeof(data), fd);
+	if( strncmp(data, TPMSEAL_KEYTYPE_SYM, strlen(TPMSEAL_KEYTYPE_SYM)) != 0 ) {
+		rc = -2;
+		tpm_errno = EWRONGKEYTYPE;
+		goto tss_out_closefile;
+	}
+
 	tmpLen+=strlen(data);
         /* retrieve the sealed EVP symmetric key used for encryption */
        	while ( (rcPtr=fgets(data, sizeof(data), fd)) != NULL &&
-		strncmp(data, DAT_TAG, strlen(DAT_TAG)) !=0 ) {
+		strncmp(data, TPMSEAL_ENC_STRING, strlen(TPMSEAL_ENC_STRING)) !=0 ) {
 		int i = 0;
 		tmpLen+=strlen(data);
 		while (data[i] != '\0' && data[i] != '\n') {
@@ -178,8 +179,8 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	}
 
         if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
-					strlen(POLICY_SECRET), 
-					POLICY_SECRET)) != TSS_SUCCESS) {
+					strlen(TPMSEAL_SECRET), 
+					TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out_closeall;
 	}
@@ -190,7 +191,7 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 		goto tss_out_closeall;
 	}
 
-	/* This step will fail if tried on the wrong machine */
+	/* This is the failure point if trying to unseal data on a differnt TPM */
         if ((rc=Tspi_Context_LoadKeyByBlob(hContext, hSrk, tssLen, 
 					tssKeyData, &hKey)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBB;
@@ -204,8 +205,8 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	}
 
 	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
-					strlen(POLICY_SECRET), 
-					POLICY_SECRET)) != TSS_SUCCESS) {
+					strlen(TPMSEAL_SECRET), 
+					TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out_closeall;
 	}
@@ -217,8 +218,7 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	}
 
 	*tss_data = malloc(stats.st_size-tmpLen);
-	encData = malloc(stats.st_size - tmpLen);
-	if ( *tss_data == NULL || encData == NULL ) {
+	if ( *tss_data == NULL ) {
 		rc = -1;
 		tpm_errno = ENOMEM;
 		goto tss_out_closeall;
@@ -226,21 +226,21 @@ int tpmUnsealFile( char* fname, char** tss_data, int* tss_size ) {
 	*tss_size = 0;
         /* Decrypt */
         EVP_CIPHER_CTX ctx;
-        EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, iv);
+        EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, TPMSEAL_IV);
        	/* retrieve the encrypted data needed */
         while (fgets(data, sizeof(data), fd) != NULL && 
-		strncmp(data, FOOTER, strlen(FOOTER)) != 0) {
+		strncmp(data, TPMSEAL_FTR_STRING, strlen(TPMSEAL_FTR_STRING)) != 0) {
 		int i = 0;
 		datLen = 0;
                	while (data[i] != '\0' && data[i] != '\n') {
                         int val;
        	               	sscanf(data + i, "%02x", &val);
-                        sprintf(encData + datLen, "%c", 0xFF & val);
+                        sprintf(data + (i/2), "%c", 0xFF & val);
        	               	i += 2;
 			datLen++;
        	        }
 		EVP_DecryptUpdate(&ctx, (*tss_data)+(*tss_size), 
-					&tmpLen, encData, datLen);
+					&tmpLen, data, datLen);
 		(*tss_size) += tmpLen;
         }
         EVP_DecryptFinal(&ctx, (*tss_data)+(*tss_size), &tmpLen);
@@ -251,8 +251,6 @@ tss_out_closeall:
 tss_out_closefile:
 	fclose(fd);
 tss_out:
-	if ( encData )
-		free( encData );
 	return rc;
 }
 
@@ -284,6 +282,8 @@ char * tpmUnsealStrerror(int rc, char* str) {
 					return "Wrong EVP tag";
 				case EWRONGDATTAG:
 					return "Wrong DATA tag";
+				case EWRONGKEYTYPE:
+					return "Not a Symmetric EVP Key";
 			}
 		default:
 			if ( str ) {
