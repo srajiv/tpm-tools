@@ -22,14 +22,23 @@
 #ifndef __TPM_TSPI_H
 #define __TPM_TSPI_H
 
-#include <trousers/tss.h>
-#include <trousers/trousers.h>
+#include <stdlib.h>
+#include <tss/platform.h>
+#include <tss/tss_defines.h>
+#include <tss/tss_typedef.h>
+#include <tss/tcpa_defines.h>
+#include <tss/tcpa_typedef.h>
+#include <tss/tcpa_struct.h>
+#include <tss/tss_structs.h>
+#include <tss/tcpa_error.h>
+#include <tss/tss_error.h>
 #include <tpm_utils.h>
+
+static TSS_UUID SRK_UUID = TSS_UUID_SRK;
 
 #define NULL_HOBJECT 0
 #define NULL_HKEY NULL_HOBJECT
 #define NULL_HPCRS NULL_HOBJECT
-static TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
 
 //Display functions
 const char *displayKeyUsageMap(UINT32 a_uiData);
@@ -99,6 +108,12 @@ TSS_RESULT keyGetPubKey(TSS_HKEY a_hKey,
 TSS_RESULT keyGetKeyByUUID(TSS_HCONTEXT a_hContext,
 			   TSS_FLAG a_fStoreType,
 			   TSS_UUID a_uKeyId, TSS_HKEY * a_hKey);
+
+TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey,
+			TSS_HPCRS a_hPcrs);
+TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
+			UINT32 a_len, BYTE * a_data,
+			TSS_HPCRS a_hPcrs);
 
 
 #endif

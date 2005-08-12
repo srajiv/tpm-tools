@@ -1,7 +1,6 @@
 #include "tpm_seal.h"
 #include "tpm_unseal.h"
-#include <trousers/tss.h>
-#include <trousers/trousers.h>
+#include "tpm_tspi.h"
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -46,7 +45,6 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 #define MAX_LINE_LEN 66
 #define TSSKEY_DEFAULT_SIZE 559
 #define EVPKEY_DEFAULT_SIZE 312
-static const TSS_UUID SRK_UUID = { 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 1 } };
 
 int tpm_errno;
 
@@ -54,10 +52,10 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
 	int i, rc, tmpLen=0, tssLen=0, evpLen=0, datLen=0;
 	char* rcPtr;
-	char data[MAX_LINE_LEN];
-	char *tssKeyData = NULL;
+	unsigned char data[MAX_LINE_LEN];
+	unsigned char *tssKeyData = NULL;
 	int tssKeyDataSize = 0;
-	char *evpKeyData = NULL;
+	unsigned char *evpKeyData = NULL;
 	int evpKeyDataSize = 0;
 	FILE* fd;
 	struct stat stats;
@@ -337,17 +335,17 @@ char * tpmUnsealStrerror(int rc) {
 		case -2:
 			switch(tpm_errno) {
 				case EINVAL:
-					return ("Must pass in valid data and size pointers");
+					return _("Must pass in valid data and size pointers");
 				case ENOTSSHDR:
-					return ("No TSS header present");
+					return _("No TSS header present");
 				case EWRONGTSSTAG:
-					return ("Wrong TSS tag");
+					return _("Wrong TSS tag");
 				case EWRONGEVPTAG:
-					return ("Wrong EVP tag");
+					return _("Wrong EVP tag");
 				case EWRONGDATTAG:
-					return ("Wrong DATA tag");
+					return _("Wrong DATA tag");
 				case EWRONGKEYTYPE:
-					return ("Not a Symmetric EVP Key");
+					return _("Not a Symmetric EVP Key");
 			}
 		default:
 			snprintf(tpm_error_buf, sizeof(tpm_error_buf), 

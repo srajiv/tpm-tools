@@ -506,3 +506,27 @@ getCapability(TSS_HTPM a_hTpm,
 
 	return result;
 }
+
+TSS_RESULT 
+keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey,
+		TSS_HPCRS a_hPcrs)
+{
+	TSS_RESULT result = Tspi_Key_CreateKey(a_hKey, a_hWrapKey, a_hPcrs);
+	tspiResult("Tspi_Key_CreateKey", result);
+
+	return result;
+}
+
+TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
+			UINT32 a_len, BYTE * a_data,
+			TSS_HPCRS a_hPcrs)
+{
+
+	TSS_RESULT result =
+		Tspi_Data_Seal(a_hEncdata, a_hKey, a_len, a_data, a_hPcrs);
+	tspiResult("Tspi_Data_Seal", result);
+
+	return result;
+}
+
+

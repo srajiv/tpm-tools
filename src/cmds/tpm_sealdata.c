@@ -24,27 +24,6 @@
 #include "tpm_utils.h"
 #include "tpm_seal.h"
 
-static inline TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey,
-				      TSS_HPCRS a_hPcrs)
-{
-	TSS_RESULT result =
-	    Tspi_Key_CreateKey(a_hKey, a_hWrapKey, a_hPcrs);
-	tspiResult("Tspi_Key_CreateKey", result);
-	return result;
-}
-
-static inline TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
-				  UINT32 a_len, BYTE * a_data,
-				  TSS_HPCRS a_hPcrs)
-{
-
-	TSS_RESULT result =
-	    Tspi_Data_Seal(a_hEncdata, a_hKey, a_len, a_data, a_hPcrs);
-	tspiResult("Tspi_Data_Seal", result);
-
-	return result;
-}
-
 static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
@@ -128,8 +107,8 @@ int main(int argc, char **argv)
 	};
 	FILE *ifile = NULL, *ofile = NULL;
 	int len = 0, i;
-	char line[66];		/* 64 data \n \0 */
-	char encData[64];
+	unsigned char line[66];		/* 64 data \n \0 */
+	unsigned char encData[64];
 	int encDataLen;
 	UINT32 encLen;
 	BYTE *encKey;
