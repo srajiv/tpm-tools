@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 	char *szTpmPasswd = NULL;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
-	BOOL bValue;
+	TSS_BOOL bValue;
 	TSS_HPOLICY hTpmPolicy;
 	int iRc = -1;
 	struct option hOpts[] = { {"enable", no_argument, NULL, 'e'},
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 		    (hTpm, TSS_TPMSTATUS_DISABLED,
 		     &bValue) != TSS_SUCCESS)
 			goto out_close;
-		logMsg(_("Disabled status: %s\n"), logBool(bValue));
+		logMsg(_("Disabled status: %s\n"), logBool(mapTssBool(bValue)));
 	}else {
 		if (fForce == TSS_TPMSTATUS_OWNERSETDISABLE) {
 			//Prompt for owner password

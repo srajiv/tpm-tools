@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
-	BOOL bValue;
+	TSS_BOOL bValue;
 	int iRc = -1;
 	struct option opts[] = { {"active", no_argument, NULL, 'a'},
 	{"inactive", no_argument, NULL, 'i'},
@@ -124,13 +124,13 @@ int main(int argc, char **argv)
 		     &bValue) != TSS_SUCCESS)
 			goto out_close;
 		logMsg(_("Persistent Deactivated Status: %s\n"),
-		       logBool(bValue));
+		       logBool(mapTssBool(bValue)));
 
 		if (tpmGetStatus
 		    (hTpm, TSS_TPMSTATUS_SETTEMPDEACTIVATED, &bValue))
 			goto out_close;
 		logMsg(_("Volatile Deactivated Status: %s\n"),
-		       logBool(bValue));
+		       logBool(mapTssBool(bValue)));
 		break;
 	case ACTIVATE:
 		if (tpmSetStatus(hTpm, TSS_TPMSTATUS_PHYSICALSETDEACTIVATED, FALSE) != TSS_SUCCESS)

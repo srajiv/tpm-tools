@@ -63,6 +63,9 @@ void tspiDebug(const char *a_szName, TSS_RESULT a_iResult);
 void tspiError(const char *a_szName, TSS_RESULT a_iResult);
 void tspiResult(const char *a_szName, TSS_RESULT a_tResult);
 
+// Map a TSS_BOOL into a BOOL
+BOOL mapTssBool(TSS_BOOL a_bValue);
+
 //TSPI generic setup/teardown functions
 TSS_RESULT contextCreate(TSS_HCONTEXT * a_hContext);
 TSS_RESULT contextClose(TSS_HCONTEXT a_hContext);
@@ -80,6 +83,8 @@ TSS_RESULT policySetSecret(TSS_HPOLICY a_hPolicy,
 TSS_RESULT policyFlushSecret(TSS_HPOLICY a_hPolicy);
 
 //Common TSPI functions
+TSS_RESULT tpmGetPubEk(TSS_HTPM a_hTpm, TSS_BOOL a_fOwner,
+                       TSS_VALIDATION * a_pValData, TSS_HKEY * a_phEPubKey);
 TSS_RESULT tpmGetRandom(TSS_HTPM a_hTpm, UINT32 a_length, BYTE ** a_data);
 TSS_RESULT tpmSetStatus(TSS_HTPM a_hTpm,
 			TSS_FLAG a_fStatus, TSS_BOOL a_bValue);

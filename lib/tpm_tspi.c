@@ -296,6 +296,15 @@ void tspiResult(const char *a_szName, TSS_RESULT a_tResult)
 		tspiError(a_szName, a_tResult);
 }
 
+BOOL mapTssBool(TSS_BOOL a_bValue)
+{
+	BOOL bRc;
+
+	bRc = a_bValue ? TRUE : FALSE;
+
+	return bRc;
+}
+
 TSS_RESULT contextCreate(TSS_HCONTEXT * a_hContext)
 {
 	TSS_RESULT result = Tspi_Context_Create(a_hContext);
@@ -388,6 +397,19 @@ TSS_RESULT policyFlushSecret(TSS_HPOLICY a_hPolicy)
 	return result;
 }
 
+TSS_RESULT
+tpmGetPubEk(TSS_HTPM a_hTpm,
+	    TSS_BOOL a_fOwner,
+	    TSS_VALIDATION * a_pValData, TSS_HKEY * a_phEPubKey)
+{
+
+	TSS_RESULT result = Tspi_TPM_GetPubEndorsementKey(a_hTpm, a_fOwner,
+							  a_pValData,
+							  a_phEPubKey);
+	tspiResult("Tspi_TPM_GetPubEndorsementKey", result);
+
+	return result;
+}
 
 TSS_RESULT
 tpmSetStatus(TSS_HTPM a_hTpm, TSS_FLAG a_fStatus, TSS_BOOL a_bValue)

@@ -57,8 +57,8 @@ static struct physFlag flags[] = {
 };
 static BOOL bCheck = FALSE;
 static BOOL bChangeRequested = FALSE;
-static BOOL bValue;
 static BOOL bYes = FALSE;
+static TSS_BOOL bValue;
 
 
 static void help(const char *aCmd)
@@ -153,7 +153,8 @@ static int parse(const int aOpt, const char *aArg)
 static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 {
 
-	BOOL bCmd, bHwd, bRc;
+	TSS_BOOL bCmd, bHwd;
+	BOOL bRc;
 	TSS_HPOLICY hTpmPolicy;
 	char *pwd = NULL;
 	char rsp[5];
@@ -197,8 +198,8 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	} else {
 	      give_vals:
 		logMsg(_("Current State:\n"));
-		logMsg("\t%s: %s\n", _(flags[cmdEnable].name), logBool(bCmd));
-		logMsg("\t%s: %s\n", _(flags[hwdEnable].name), logBool(bHwd));
+		logMsg("\t%s: %s\n", _(flags[cmdEnable].name), logBool(mapTssBool(bCmd)));
+		logMsg("\t%s: %s\n", _(flags[hwdEnable].name), logBool(mapTssBool(bHwd)));
 		logMsg
 		    (_("These will be the permanent values if you choose to proceed.\n"));
 	}
@@ -295,7 +296,7 @@ int main(int argc, char **argv)
 					 &bValue) != TSS_SUCCESS)
 				goto out_close;
 			logMsg("\t%s: %s\n", _(flags[i].name),
-			       logBool(bValue));
+			       logBool(mapTssBool(bValue)));
 		} while (flags[++i].name);
 
 		goto out_success;

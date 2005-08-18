@@ -29,7 +29,7 @@
  */
 
 //Controlled by option inputs
-static BOOL bValue = TRUE;
+static TSS_BOOL bValue = TRUE;
 static BOOL bCheck = FALSE;
 static BOOL changeRequested = FALSE;
 
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 		     &bValue) != TSS_SUCCESS)
 			goto out_close;
 
-		logMsg(_("Ownable status: %s\n"), logBool(bValue));
+		logMsg(_("Ownable status: %s\n"), logBool(mapTssBool(bValue)));
 		goto out_success;
 	}
 

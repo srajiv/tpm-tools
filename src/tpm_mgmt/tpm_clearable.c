@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 				goto out_close;
 
 			logMsg("\t%s Disabled: %s\n", _(flags[i].name),
-			       logBool(bValue));
+			       logBool(mapTssBool(bValue)));
 
 		} while (flags[++i].name);
 		goto out_success;

@@ -22,19 +22,6 @@
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
 
-static inline TSS_RESULT
-tpmGetPubEk(TSS_HTPM a_hTpm,
-	    TSS_BOOL a_fOwner,
-	    TSS_VALIDATION * a_pValData, TSS_HKEY * a_phEPubKey)
-{
-
-	TSS_RESULT result = Tspi_TPM_GetPubEndorsementKey(a_hTpm, a_fOwner,
-							  a_pValData,
-							  a_phEPubKey);
-	tspiResult("Tspi_TPM_GetPubEndorsementKey", result);
-	return result;
-}
-
 int main(int argc, char **argv)
 {
 
