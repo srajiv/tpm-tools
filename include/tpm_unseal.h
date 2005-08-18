@@ -22,6 +22,20 @@
 #ifndef __TPM_UNSEAL_H
 #define __TPM_UNSEAL_H
 
+#define TPMSEAL_FILE_ERROR -2
+#define TPMSEAL_STD_ERROR -1
+
+enum tpm_errors {
+	ENOTSSHDR = 0,
+	ENOTSSFTR,
+	EWRONGTSSTAG,
+	EWRONGEVPTAG,
+	EWRONGDATTAG,
+	EWRONGKEYTYPE,
+}; 
+
+extern tpm_errno;
+
 int tpmUnsealFile(char*, unsigned char**, int*);
 void tpmUnsealShred(unsigned char*, int);
 char* tpmUnsealStrerror(int);

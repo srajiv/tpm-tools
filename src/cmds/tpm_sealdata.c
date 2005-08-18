@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 	{"outfile", required_argument, NULL, 'o'},
 	{"pcr", required_argument, NULL, 'p'}
 	};
-	FILE *ifile = NULL, *ofile = NULL;
+	FILE *ifile = NULL;
 	int len = 0, i;
 	unsigned char line[66];		/* 64 data \n \0 */
 	unsigned char encData[64];
@@ -118,6 +118,8 @@ int main(int argc, char **argv)
 	TSS_FLAG keyFlags = TSS_KEY_TYPE_STORAGE | TSS_KEY_SIZE_2048 |
 	    TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
 	    TSS_KEY_NOT_MIGRATABLE;
+
+	BIO *bdata=NULL, *b64=NULL;
 
 	initIntlSys();
 
@@ -147,92 +149,112 @@ int main(int argc, char **argv)
 
 	if (!fgets(line, sizeof(line), ifile)) {
 		logError(_("Unable to retrieve header.\n"));
-		goto out_stream_close;
+		goto out_close;
 	}
 
 	if ( strcmp(line, TPMSEAL_HDR_STRING) == 0 ) {
 		logError(_("Invalid header: file already sealed\n"));
-		goto out_stream_close;
+		goto out_close;
 	}
 
 	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
 			 &randKey) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (keyLoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, SRK_UUID, &hSrk)
 	    != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_RSAKEY, keyFlags,
 	     &hKey) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (policyGet(hKey, &hPolicy) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), TPMSEAL_SECRET)
 	    != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (keyCreateKey(hKey, hSrk, NULL_HPCRS) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (keyLoadKey(hKey, hSrk) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_ENCDATA, TSS_ENCDATA_SEAL,
 	     &hEncdata) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (policyGet(hEncdata, &hPolicy) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), TPMSEAL_SECRET)
 	    != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (dataSeal
 	    (hEncdata, hKey, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
 	     randKey, hPcrs) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (getAttribData(hEncdata, TSS_TSPATTRIB_ENCDATA_BLOB,
 			  TSS_TSPATTRIB_ENCDATABLOB_BLOB, &encLen,
 			  &encKey) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
 	if (getAttribData
 	    (hKey, TSS_TSPATTRIB_KEY_BLOB, TSS_TSPATTRIB_KEYBLOB_BLOB,
 	     &sealKeyLen, &sealKey) != TSS_SUCCESS)
-		goto out_stream_close;
+		goto out_close;
 
+	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
+		logError(_("Unable to open base64 BIO\n"));
+		goto out_close;
+	}
+
+	if ((bdata = BIO_new(BIO_s_file())) == NULL) {
+		logError(_("Unable to open output BIO\n"));
+		goto out_close;
+	}
+	
 	if (strlen(out_filename) == 0)
-		ofile = stdout;
-	else if (!(ofile = fopen(out_filename, "w+"))) {
+		BIO_set_fp(bdata, stdout, BIO_NOCLOSE);
+	else if (BIO_write_filename(bdata, out_filename) <= 0) {
 		logError(_("Unable to open output file: %s\n"),
 			 out_filename);
-		goto out_stream_close;
+		goto out_close;
 	}
 
-	fprintf(ofile, "%s\n", TPMSEAL_HDR_STRING);
-	fprintf(ofile, "%s\n", TPMSEAL_TSS_STRING); 
-	for (i = 0; i < sealKeyLen; i++) {
-		fprintf(ofile, "%02x", 0xFF & sealKey[i]);
-		if (!((i + 1) % 32))
-			fprintf(ofile, "\n");
-	}
-	fprintf(ofile, "\n");
-	fprintf(ofile, "%s\n", TPMSEAL_EVP_STRING);
-	fprintf(ofile, "%s: %s\n", TPMSEAL_KEYTYPE_SYM, TPMSEAL_CIPHER_AES256CBC);
-	for (i = 0; i < encLen; i++) {
-		fprintf(ofile, "%02x", 0xFF & encKey[i]);
-		if (!((i + 1) % 32))
-			fprintf(ofile, "\n");
-	}
-	fprintf(ofile, "\n");
-	fprintf(ofile, "%s\n", TPMSEAL_ENC_STRING); 
+	BIO_puts(bdata, TPMSEAL_HDR_STRING);
+	BIO_puts(bdata, "\n");
+
+	/* Sealing key used on the TPM */
+	BIO_puts(bdata, TPMSEAL_TSS_STRING);
+	BIO_puts(bdata, "\n");
+	bdata = BIO_push(b64, bdata);
+	BIO_write(bdata, sealKey, sealKeyLen);
+	BIO_flush(bdata);
+	bdata = BIO_pop(b64);
+
+	/* Sealed EVP Symmetric Key */
+	BIO_puts(bdata, TPMSEAL_EVP_STRING);
+	BIO_puts(bdata, "\n");
+	BIO_puts(bdata, TPMSEAL_KEYTYPE_SYM);
+	BIO_puts(bdata, ": ");
+	BIO_puts(bdata, TPMSEAL_CIPHER_AES256CBC);
+	BIO_puts(bdata, "\n");
+	bdata = BIO_push(b64, bdata);
+	BIO_write(bdata, encKey, encLen);
+	BIO_flush(bdata);
+	bdata = BIO_pop(b64);
+
+	/* Encrypted Data */
+	BIO_puts(bdata, TPMSEAL_ENC_STRING); 
+	BIO_puts(bdata, "\n");
+	bdata = BIO_push(b64, bdata);
 
 	EVP_CIPHER_CTX ctx;
 	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, TPMSEAL_IV);
@@ -240,37 +262,29 @@ int main(int argc, char **argv)
 	do {
 		EVP_EncryptUpdate(&ctx, encData, &encDataLen,
 				  line, strlen(line));
-		for (i = 0; i < encDataLen; i++, len++) {
-			fprintf(ofile, "%02x", 0xFF & encData[i]);
-			if (!((len + 1) % 32))
-				fprintf(ofile, "\n");
-		}
+		BIO_write(bdata, encData, encDataLen);
 	} while (fread(line, 1, sizeof(line), ifile) > 0);
 
 	EVP_EncryptFinal(&ctx, encData, &encDataLen);
-	for (i = 0; i < encDataLen; i++, len++) {
-		fprintf(ofile, "%02x", 0xFF & encData[i]);
-		if (!((len + 1) % 32))
-			fprintf(ofile, "\n");
-	}
-	if (len % 32)
-		fprintf(ofile, "\n");
+	BIO_write(bdata, encData, encDataLen);
+	BIO_flush(bdata);
+	bdata = BIO_pop(b64);
 
-	fprintf(ofile, "%s\n", TPMSEAL_FTR_STRING);
-
+	BIO_puts( bdata, TPMSEAL_FTR_STRING);
+	BIO_write( bdata, "\n", 1 );
+	
 	iRc = 0;
 	logSuccess(argv[0]);
-
-      out_stream_close:
-	if (ifile && ifile != stdout)
-		fclose(ifile);
-
-	if (ofile && ofile != stdout)
-		fclose(ofile);
 
       out_close:
 	contextClose(hContext);
 
       out:
+	if (ifile && ifile != stdout)
+		fclose(ifile);
+	if (bdata)
+		BIO_free(bdata);
+	if (b64)
+		BIO_free(b64);
 	return iRc;
 }

@@ -9,14 +9,6 @@
 #include <unistd.h>
 #include <openssl/evp.h>
 
-enum tpm_errors {
-	ENOTSSHDR = 0,
-	EWRONGTSSTAG,
-	EWRONGEVPTAG,
-	EWRONGDATTAG,
-	EWRONGKEYTYPE,
-}; 
-
 enum tspi_errors {
 	ETSPICTXCREAT = 0,
 	ETSPICTXCNCT,
@@ -50,14 +42,13 @@ int tpm_errno;
 
 int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
-	int i, rc, tmpLen=0, tssLen=0, evpLen=0, datLen=0;
+	int start, i, rc, rcLen=0, tssLen=0, evpLen=0, datLen=0;
 	char* rcPtr;
-	unsigned char data[MAX_LINE_LEN];
-	unsigned char *tssKeyData = NULL;
+	char data[MAX_LINE_LEN];
+	char *tssKeyData = NULL;
 	int tssKeyDataSize = 0;
-	unsigned char *evpKeyData = NULL;
+	char *evpKeyData = NULL;
 	int evpKeyDataSize = 0;
-	FILE* fd;
 	struct stat stats;
         TSS_HCONTEXT hContext;
         TSS_HENCDATA hEncdata;
@@ -69,10 +60,12 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	unsigned char* res_data;
 	int res_size;
 
+	BIO *bdata = NULL, *b64 = NULL;
+
 	if ( tss_data == NULL || tss_size == NULL ) {
-		rc = -2;
+		rc = TPMSEAL_STD_ERROR;
 		tpm_errno = EINVAL;
-		goto tss_out;
+		goto out;
 	}
 
 	*tss_data = NULL;
@@ -80,131 +73,147 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
 	if ((rc = stat(fname, &stats))) {
 		tpm_errno = errno;
-		goto tss_out;
+		goto out;
 	}	
 
-	if ((fd = fopen(fname, "r")) == NULL){
+	if((bdata = BIO_new_file(fname, "r")) == NULL ) {
 		tpm_errno = errno;
-		rc = -1;
-		goto tss_out;
+		rc = TPMSEAL_STD_ERROR;
+		goto out;
 	}
 
         /* test file header for TSS */
-	fgets(data, sizeof(data), fd);
-        if (strncmp(data, TPMSEAL_HDR_STRING, strlen(TPMSEAL_HDR_STRING)) != 0) {
-		rc = -2;
+	BIO_gets(bdata, data, sizeof(data));
+        if (strncmp(data, TPMSEAL_HDR_STRING, 
+			strlen(TPMSEAL_HDR_STRING)) != 0) {
+		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = ENOTSSHDR;
-		goto tss_out;
+		goto out;
 	}		
-	tmpLen+=strlen(data); //TSS_HEADER
 
-	fgets(data, sizeof(data), fd);
-	if (strncmp(data, TPMSEAL_TSS_STRING, strlen(TPMSEAL_TSS_STRING)) != 0) {
-		rc = -2;
+	/* looking for TSS Key Header */
+	BIO_gets(bdata, data, sizeof(data));
+	if (strncmp(data, TPMSEAL_TSS_STRING, 
+			strlen(TPMSEAL_TSS_STRING)) != 0) {
+		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = EWRONGTSSTAG;
-		goto tss_out_closefile;
+		goto out;
 	}
-	tmpLen+=strlen(data); //TSS_STRING
 
       	/* retrieve the TSS key used to Seal */
 	if ( (tssKeyData = malloc( TSSKEY_DEFAULT_SIZE )) == NULL) {
 		tpm_errno = ENOMEM;
-		rc = -1;
-		goto tss_out_closefile;
+		rc = TPMSEAL_STD_ERROR;
+		goto out;
 	}
 
 	tssKeyDataSize = TSSKEY_DEFAULT_SIZE;
 
-        while ((rcPtr = fgets(data, sizeof(data), fd)) != NULL &&
-		strncmp( data, TPMSEAL_EVP_STRING, strlen(TPMSEAL_EVP_STRING)) != 0 ) {
-		int i = 0;
-		tmpLen+=strlen(data); //Line of data
+	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
+		//Error here?
+		goto out;
+	}
 
-		if ( ( tssLen + strlen(data)/2 ) > tssKeyDataSize ) {
-			printf( "Realloc req: %d %d %d\n", tssLen, strlen(data), tssKeyDataSize);
-			rcPtr = realloc( tssKeyData, tssKeyDataSize + strlen(data));
+	start = BIO_tell(bdata);
+
+	bdata = BIO_push( b64, bdata );
+
+        while ((rcLen=BIO_read(bdata, data, sizeof(data))) > 0 ) {
+		if ( ( tssLen + rcLen ) > tssKeyDataSize ) {
+			rcPtr = realloc( tssKeyData, tssKeyDataSize + rcLen);
 			if ( rcPtr == NULL ) {
 				tpm_errno = ENOMEM;
-				rc = -1;
-				goto tss_out_closefile;
+				rc = TPMSEAL_STD_ERROR;
+				goto out;
 			}
 			tssKeyData = rcPtr;
-			tssKeyDataSize += strlen(data);
+			tssKeyDataSize += rcLen;
 		}
-
-                while (data[i] != '\0' && data[i] != '\n' ) {
-       	               	int val;
-			sscanf(data + i, "%02x", &val);
-			sprintf(tssKeyData + tssLen++, "%c", 0xFF & val);
-               	        i += 2;
-		}
+		memcpy( tssKeyData + tssLen, data, rcLen );
+		tssLen += rcLen;
         }
+	bdata = BIO_pop(b64);
+	BIO_free(b64);
 
-	if ( rcPtr == NULL ) {
-		rc = -2;
+	start += ((tssLen * 4)+2)/3; //add base64 chars
+	start += 3 - ((tssLen * 4)%3); //add base64 pad
+	start += ((((tssLen * 4)+2)/3)+63)/64; //add base64 nl
+
+	/* looking for EVP Key Header */
+	BIO_seek(bdata, start);
+	BIO_gets(bdata, data, sizeof(data));
+	if (strncmp( data, TPMSEAL_EVP_STRING, 
+			strlen(TPMSEAL_EVP_STRING)) != 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = EWRONGEVPTAG;
-		goto tss_out_closefile;
+		goto out;
 	}
-	tmpLen+= strlen(data);  //EVP_STRING
 
-	fgets(data, sizeof(data), fd);
-	if( strncmp(data, TPMSEAL_KEYTYPE_SYM, strlen(TPMSEAL_KEYTYPE_SYM)) != 0 ) {
-		rc = -2;
+	BIO_gets(bdata, data, sizeof(data));
+	if( strncmp(data, TPMSEAL_KEYTYPE_SYM, 
+			strlen(TPMSEAL_KEYTYPE_SYM)) != 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = EWRONGKEYTYPE;
-		goto tss_out_closefile;
+		goto out;
 	}
-	tmpLen+=strlen(data); //KEYTYPE_STRING
 
         /* retrieve the sealed EVP symmetric key used for encryption */
 	if ( (evpKeyData = malloc( EVPKEY_DEFAULT_SIZE )) == NULL) {
 		tpm_errno = ENOMEM;
-		rc = -1;
-		goto tss_out_closefile;
+		rc = TPMSEAL_STD_ERROR;
+		goto out;
 	}
 
 	evpKeyDataSize = EVPKEY_DEFAULT_SIZE;
 
-       	while ( (rcPtr=fgets(data, sizeof(data), fd)) != NULL &&
-		strncmp(data, TPMSEAL_ENC_STRING, strlen(TPMSEAL_ENC_STRING)) !=0 ) {
-		int i = 0;
-		tmpLen+=strlen(data); //Line of data
+	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
+		//Error here?
+		goto out;
+	}
 
-		if ( ( evpLen + strlen(data)/2 ) > evpKeyDataSize ) {
-			printf( "Realloc req %d %d %d\n", evpLen, strlen(data), evpKeyDataSize);
-			rcPtr = realloc( evpKeyData, evpKeyDataSize + strlen(data));
+	start = BIO_tell( bdata );
+	
+	bdata = BIO_push( b64, bdata );
+        while ((rcLen=BIO_read(bdata, data, sizeof(data))) > 0 ) {
+		if ( ( evpLen + rcLen ) > evpKeyDataSize ) {
+			rcPtr = realloc( evpKeyData, evpKeyDataSize + rcLen);
 			if ( rcPtr == NULL ) {
 				tpm_errno = ENOMEM;
-				rc = -1;
-				goto tss_out_closefile;
+				rc = TPMSEAL_STD_ERROR;
+				goto out;
 			}
 			evpKeyData = rcPtr;
-			evpKeyDataSize += strlen(data);
+			evpKeyDataSize += rcLen;
 		}
+		memcpy( evpKeyData + evpLen, data, rcLen );
+		evpLen += rcLen;
+        }
+	bdata = BIO_pop(b64);
+	BIO_free(b64);
 
-		while (data[i] != '\0' && data[i] != '\n') {
-			int val;
-			sscanf(data + i, "%02x", &val);
-			sprintf(evpKeyData + evpLen++, "%c", 0xFF & val);
-			i+= 2;
-		}
-	}
+	start += ((evpLen * 4)+2)/3; //add base64 chars
+	start += 3 - ((evpLen * 4)%3); //add base64 pad
+	start += ((((evpLen * 4)+2)/3)+63)/64; //add base64 nl
 
-	if ( rcPtr == NULL ) {
-		rc = -2;
+	/* looking for ENC Data Header */
+	BIO_seek(bdata, start);
+	BIO_gets(bdata, data, sizeof(data));
+	if (strncmp( data, TPMSEAL_ENC_STRING, 
+			strlen(TPMSEAL_ENC_STRING)) != 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = EWRONGDATTAG;
-		goto tss_out_closefile;
+		goto out;
 	}
-
-	tmpLen+=strlen(data); //ENC_STRING
+	
 	/* Unseal */
 	if ((rc=Tspi_Context_Create(&hContext)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXCREAT;
-		goto tss_out_closefile;
+		goto out;
 	}
 
 	if ((rc=Tspi_Context_Connect(hContext, NULL)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXCNCT;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 			
 	if ((rc=Tspi_Context_CreateObject(hContext,
@@ -212,7 +221,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 					TSS_ENCDATA_SEAL,
 					&hEncdata)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXCO;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 	        
 	if ((rc=Tspi_SetAttribData(hEncdata,
@@ -220,88 +229,106 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 				TSS_TSPATTRIB_ENCDATABLOB_BLOB,
 				evpLen, evpKeyData)) != TSS_SUCCESS) {
 		tpm_errno = ETSPISETAD;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
         if ((rc=Tspi_GetPolicyObject(hEncdata, TSS_POLICY_USAGE, 
 					&hPolicy)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIGETPO;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
         if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
 					strlen(TPMSEAL_SECRET), 
 					TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
         if ((rc=Tspi_Context_LoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, 
 					SRK_UUID, &hSrk)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBU;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
-	/* This is the failure point if trying to unseal data on a differnt TPM */
+	/* Failure point if trying to unseal data on a differnt TPM */
         if ((rc=Tspi_Context_LoadKeyByBlob(hContext, hSrk, tssLen, 
 					tssKeyData, &hKey)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBB;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
 	if ((rc=Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hPolicy)) 
 		!= TSS_SUCCESS) {
 		tpm_errno = ETSPIGETPO;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
 	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
 					strlen(TPMSEAL_SECRET), 
 					TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
         if ((rc=Tspi_Data_Unseal(hEncdata, hKey, &symKeyLen,
                	             &symKey)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIDATU;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 
-	res_data = malloc(stats.st_size-tmpLen);
+	start = BIO_tell(bdata);
+	res_data = malloc(stats.st_size-start);
 	if ( res_data == NULL ) {
-		rc = -1;
+		rc = TPMSEAL_STD_ERROR;
 		tpm_errno = ENOMEM;
-		goto tss_out_closeall;
+		goto tss_out;
 	}
 	res_size = 0;
+
+	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
+		//Error here?
+		goto out;
+	}
+
         /* Decrypt */
         EVP_CIPHER_CTX ctx;
         EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, TPMSEAL_IV);
-       	/* retrieve the encrypted data needed */
-        while (fgets(data, sizeof(data), fd) != NULL && 
-		strncmp(data, TPMSEAL_FTR_STRING, strlen(TPMSEAL_FTR_STRING)) != 0) {
-		int i = 0;
-		datLen = 0;
-               	while (data[i] != '\0' && data[i] != '\n') {
-                        int val;
-       	               	sscanf(data + i, "%02x", &val);
-                        sprintf(data + (i/2), "%c", 0xFF & val);
-       	               	i += 2;
-			datLen++;
-       	        }
-		EVP_DecryptUpdate(&ctx, res_data+res_size, 
-					&tmpLen, data, datLen);
-		res_size += tmpLen;
-        }
-        EVP_DecryptFinal(&ctx, res_data+res_size, &tmpLen);
-	res_size += tmpLen;
 
-tss_out_closeall:
-	Tspi_Context_Close(hContext);
-tss_out_closefile:
-	fclose(fd);
+       	/* retrieve the encrypted data needed */
+	bdata = BIO_push(b64, bdata);
+        while ((rcLen = BIO_read(bdata, data, sizeof(data))) > 0 ) {
+		datLen += rcLen;
+		EVP_DecryptUpdate(&ctx, res_data+res_size, 
+					&rcLen, data, rcLen);
+		res_size += rcLen;
+        }
+	bdata = BIO_pop(b64);
+        EVP_DecryptFinal(&ctx, res_data+res_size, &rcLen);
+	res_size += rcLen;
+
+	start += ((datLen * 4)+2)/3; //add base64 chars
+	start += 3 - ((datLen * 4)%3); //add base64 pad
+	start += ((((datLen * 4)+2)/3)+63)/64; //add base64 nl
+
+	/* looking for Footer */
+	BIO_seek(bdata, start);
+	BIO_gets(bdata, data, sizeof(data));
+	if (strncmp( data, TPMSEAL_FTR_STRING, 
+			strlen(TPMSEAL_FTR_STRING)) != 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
+		tpm_errno = ENOTSSFTR;
+		goto tss_out;
+	}
+
 tss_out:
+	Tspi_Context_Close(hContext);
+out:
+
+	if ( bdata )
+		BIO_free(bdata);
+	if ( b64 )
+		BIO_free(b64);
 
 	if ( evpKeyData )
 		free(evpKeyData);
@@ -330,14 +357,14 @@ char * tpmUnsealStrerror(int rc) {
 	switch(rc) {
 		case 0:
 			return "Success";
-		case -1:
+		case TPMSEAL_STD_ERROR:
 			return strerror(tpm_errno);
-		case -2:
+		case TPMSEAL_FILE_ERROR:
 			switch(tpm_errno) {
-				case EINVAL:
-					return _("Must pass in valid data and size pointers");
 				case ENOTSSHDR:
 					return _("No TSS header present");
+				case ENOTSSFTR:
+					return _("No TSS footer present");
 				case EWRONGTSSTAG:
 					return _("Wrong TSS tag");
 				case EWRONGEVPTAG:
