@@ -105,7 +105,6 @@ int main(int argc, char **argv)
 	{"outfile", required_argument, NULL, 'o'},
 	{"pcr", required_argument, NULL, 'p'}
 	};
-	FILE *ifile = NULL;
 	int len = 0, i;
 	unsigned char line[66];		/* 64 data \n \0 */
 	unsigned char encData[64];
@@ -119,7 +118,7 @@ int main(int argc, char **argv)
 	    TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
 	    TSS_KEY_NOT_MIGRATABLE;
 
-	BIO *bdata=NULL, *b64=NULL;
+	BIO *bin = NULL, *bdata=NULL, *b64=NULL;
 
 	initIntlSys();
 
@@ -139,15 +138,20 @@ int main(int argc, char **argv)
 		goto out_close;
 	}
 
-	if (strlen(in_filename) == 0)
-		ifile = stdin;
-	else if ((ifile = fopen(in_filename, "r")) < 0) {
+	if ((bin = BIO_new(BIO_s_file())) == NULL) {
+		logError(_("Unable to open input BIO\n"));
+		goto out_close;
+	}
+
+	if (strlen(in_filename) == 0) 
+		BIO_set_fp(bin, stdin, BIO_NOCLOSE);
+	else if (BIO_read_filename(bin, in_filename) < 0) {
 		logError(_("Unable to open input file: %s\n"),
 			 in_filename);
 		goto out_close;
 	}
 
-	if (!fgets(line, sizeof(line), ifile)) {
+	if (BIO_gets(bin, line, sizeof(line)) < 0 ) {
 		logError(_("Unable to retrieve header.\n"));
 		goto out_close;
 	}
@@ -263,7 +267,7 @@ int main(int argc, char **argv)
 		EVP_EncryptUpdate(&ctx, encData, &encDataLen,
 				  line, strlen(line));
 		BIO_write(bdata, encData, encDataLen);
-	} while (fread(line, 1, sizeof(line), ifile) > 0);
+	} while (BIO_read(bin, line, sizeof(line)) > 0);
 
 	EVP_EncryptFinal(&ctx, encData, &encDataLen);
 	BIO_write(bdata, encData, encDataLen);
@@ -280,8 +284,8 @@ int main(int argc, char **argv)
 	contextClose(hContext);
 
       out:
-	if (ifile && ifile != stdout)
-		fclose(ifile);
+	if (bin)
+		BIO_free(bin);
 	if (bdata)
 		BIO_free(bdata);
 	if (b64)
