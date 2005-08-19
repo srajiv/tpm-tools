@@ -110,7 +110,8 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	tssKeyDataSize = TSSKEY_DEFAULT_SIZE;
 
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
-		//Error here?
+    tpm_errno = EAGAIN;
+    rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
@@ -167,7 +168,8 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	evpKeyDataSize = EVPKEY_DEFAULT_SIZE;
 
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
-		//Error here?
+    tpm_errno = EAGAIN;
+    rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
@@ -287,7 +289,8 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	res_size = 0;
 
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
-		//Error here?
+    tpm_errno = EAGAIN;
+    rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
