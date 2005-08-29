@@ -55,10 +55,18 @@ if test "$OPENSSL_LIB" = "1" -a "$OPENSSL_INC" = "1"; then
 fi
 
 OPENCRYPTOKI="0"
-AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
-AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
-if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
-  OPENCRYPTOKI="1"
+AC_ARG_ENABLE(data_mgmt, 
+		AC_HELP_STRING([--disable-data-mgmt], 
+				[don't build data_mgmt commands [default is on]]),
+		[disable_data_mgmt="yes"
+		AC_MSG_RESULT([*** Not building data_mgmt at user request ***])],)
+
+if test "x$disable_data_mgmt" != "xyes"; then
+	AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
+	AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
+	if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
+	  OPENCRYPTOKI="1"
+	fi
 fi
 
 AM_CONDITIONAL([P11_SUPPORT], [test "$OPENSSL" = "1" -a "$OPENCRYPTOKI" = "1"])
