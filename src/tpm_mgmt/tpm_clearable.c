@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 			    != TSS_SUCCESS)
 				goto out_close;
 
-			logMsg("\t%s Disabled: %s\n", _(flags[i].name),
+			logMsg("%s Disabled: %s\n", _(flags[i].name),
 			       logBool(mapTssBool(bValue)));
 
 		} while (flags[++i].name);
