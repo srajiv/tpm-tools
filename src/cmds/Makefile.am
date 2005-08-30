@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-sbin_PROGRAMS 	=	tpm_sealdata
+bin_PROGRAMS 	=	tpm_sealdata
 
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 
