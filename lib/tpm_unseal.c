@@ -321,7 +321,6 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	BIO_gets(bdata, data, sizeof(data));
 	if (strncmp( data, TPMSEAL_FTR_STRING, 
 			strlen(TPMSEAL_FTR_STRING)) != 0 ) {
-		printf( "%s\n", data); 
 		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = ENOTSSFTR;
 		goto tss_out;
