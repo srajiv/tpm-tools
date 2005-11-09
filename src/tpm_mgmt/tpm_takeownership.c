@@ -76,23 +76,19 @@ int main(int argc, char **argv)
 	    != TSS_SUCCESS)
 		goto out_close;
 
-	fSrkAttrs = TSS_KEY_TSP_SRK
-	    | ( strlen(szSrkPasswd) ? 
-		TSS_KEY_AUTHORIZATION : TSS_KEY_NO_AUTHORIZATION );
-
+	fSrkAttrs = TSS_KEY_TSP_SRK;
+	
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_RSAKEY, fSrkAttrs,
 	     &hSrk) != TSS_SUCCESS)
 		goto out_close;
 
-	if ( strlen(szSrkPasswd) ) {
-		if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
-			goto out_obj_close;
+	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
+		goto out_obj_close;
 
-		if (policySetSecret(hSrkPolicy, strlen(szSrkPasswd), szSrkPasswd)
+	if (policySetSecret(hSrkPolicy, strlen(szSrkPasswd), szSrkPasswd)
 		    != TSS_SUCCESS)
-			goto out_obj_close;
-	}
+		goto out_obj_close;
 
 	if (tpmTakeOwnership(hTpm, hSrk) != TSS_SUCCESS)
 		goto out_obj_close;

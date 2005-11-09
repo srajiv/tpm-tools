@@ -117,6 +117,7 @@ int main(int argc, char **argv)
 	TSS_FLAG keyFlags = TSS_KEY_TYPE_STORAGE | TSS_KEY_SIZE_2048 |
 	    TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
 	    TSS_KEY_NOT_MIGRATABLE;
+	TSS_HPOLICY hSrkPolicy;
 
 	BIO *bin = NULL, *bdata=NULL, *b64=NULL;
 
@@ -167,6 +168,12 @@ int main(int argc, char **argv)
 
 	if (keyLoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, SRK_UUID, &hSrk)
 	    != TSS_SUCCESS)
+		goto out_close;
+
+	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
+		goto out_close;
+
+	if (policySetSecret(hSrkPolicy, 0, NULL) != TSS_SUCCESS)
 		goto out_close;
 
 	if (contextCreateObject
