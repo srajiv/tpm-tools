@@ -34,7 +34,7 @@ enum tpm_errors {
 	EWRONGKEYTYPE,
 }; 
 
-extern tpm_errno;
+extern int tpm_errno;
 
 int tpmUnsealFile(char*, unsigned char**, int*);
 void tpmUnsealShred(unsigned char*, int);

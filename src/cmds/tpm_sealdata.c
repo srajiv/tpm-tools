@@ -105,7 +105,6 @@ int main(int argc, char **argv)
 	{"outfile", required_argument, NULL, 'o'},
 	{"pcr", required_argument, NULL, 'p'}
 	};
-	int len = 0, i;
 	unsigned char line[66];		/* 64 data \n \0 */
 	unsigned char encData[64];
 	int encDataLen;

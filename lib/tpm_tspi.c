@@ -21,6 +21,8 @@
 
 #include "tpm_tspi.h"
 
+TSS_UUID SRK_UUID = TSS_UUID_SRK;
+
 const char *mapUnknown = "Unknown";
 
 const char *usageSigning = "Signing";

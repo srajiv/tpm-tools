@@ -23,18 +23,11 @@
 #define __TPM_TSPI_H
 
 #include <stdlib.h>
-#include <tss/platform.h>
-#include <tss/tss_defines.h>
-#include <tss/tss_typedef.h>
-#include <tss/tcpa_defines.h>
-#include <tss/tcpa_typedef.h>
-#include <tss/tcpa_struct.h>
-#include <tss/tss_structs.h>
-#include <tss/tcpa_error.h>
-#include <tss/tss_error.h>
+#include <trousers/tss.h>
+#include <trousers/trousers.h>
 #include <tpm_utils.h>
 
-static TSS_UUID SRK_UUID = TSS_UUID_SRK;
+extern TSS_UUID SRK_UUID;
 
 #define NULL_HOBJECT 0
 #define NULL_HKEY NULL_HOBJECT

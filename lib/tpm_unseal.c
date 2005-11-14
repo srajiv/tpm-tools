@@ -1,6 +1,27 @@
+/*
+ * The Initial Developer of the Original Code is International
+ * Business Machines Corporation. Portions created by IBM
+ * Corporation are Copyright (C) 2005 International Business
+ * Machines Corporation. All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the Common Public License as published by
+ * IBM Corporation; either version 1 of the License, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Common Public License for more details.
+ *
+ * You should have received a copy of the Common Public License
+ * along with this program; if not, a copy can be viewed at
+ * http://www.opensource.org/licenses/cpl1.0.php.
+ */
+
+#include "tpm_tspi.h"
 #include "tpm_seal.h"
 #include "tpm_unseal.h"
-#include "tpm_tspi.h"
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,6 +29,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <openssl/evp.h>
+#include <trousers/tss.h>
+#include <trousers/trousers.h>
 
 enum tspi_errors {
 	ETSPICTXCREAT = 0,
@@ -42,7 +65,7 @@ int tpm_errno;
 
 int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
-	int start, i, rc, rcLen=0, tssLen=0, evpLen=0, datLen=0;
+	int start, rc, rcLen=0, tssLen=0, evpLen=0, datLen=0;
 	char* rcPtr;
 	char data[MAX_LINE_LEN];
 	char *tssKeyData = NULL;
