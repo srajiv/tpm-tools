@@ -44,11 +44,20 @@ Display command version info.
 \fB-l\fR, \fB\-\-log\fR [none|error|info|debug]
 Set logging level.
 .TP
+\fB-u\fR, \fB\-\-unicode\fR
+Use TSS UNICODE encoding for passwords to comply with applications using TSS popup boxes
+.TP
 \fB-o\fR, \fB\-\-owner\fR
 Change the authorization data for the TPM owner.
 .TP
 \fB-s\fR, \fB\-\-srk\fR
 Change the authorization data for the TPM's Storage Root Key. 
+.TP
+\fB-g\fR, \fB\-\-original_password_unicode\fR
+Use TSS UNICODE encoding for original password to comply with applications using TSS popup boxes
+.TP
+\fB-n\fR, \fB\-\-new_password_unicode\fR
+Use TSS UNICODE encoding for new password to comply with applications using TSS popup boxes
 
 .SH "SEE ALSO"
 .PP
