@@ -22,6 +22,12 @@
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
 
+static void help(const char* aCmd)
+{
+	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
+}
+
 static inline TSS_RESULT tpmTakeOwnership(TSS_HTPM a_hTpm, TSS_HKEY a_hSrk)
 {
 
@@ -37,6 +43,7 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	char *szSrkPasswd = NULL;
+	int tpm_len, srk_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HKEY hSrk;
@@ -46,16 +53,16 @@ int main(int argc, char **argv)
 
         initIntlSys();
 
-	if (genericOptHandler(argc, argv, "", NULL, 0, NULL, NULL) != 0)
+	if (genericOptHandler(argc, argv, "", NULL, 0, NULL, help) != 0)
 		goto out;
 
 	// Prompt for owner password
-	szTpmPasswd = getPasswd(_("Enter owner password: "), TRUE);
+	szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, TRUE);
 	if (!szTpmPasswd) {
 		goto out;
 	}
 	// Prompt for srk password
-	szSrkPasswd = getPasswd(_("Enter SRK password: "), TRUE);
+	szSrkPasswd = getPasswd(_("Enter SRK password: "), &srk_len, TRUE);
 	if (!szSrkPasswd) {
 		goto out;
 	}
@@ -72,7 +79,7 @@ int main(int argc, char **argv)
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hTpmPolicy, strlen(szTpmPasswd), szTpmPasswd)
+	if (policySetSecret(hTpmPolicy, tpm_len, szTpmPasswd)
 	    != TSS_SUCCESS)
 		goto out_close;
 
@@ -86,7 +93,7 @@ int main(int argc, char **argv)
 	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
 		goto out_obj_close;
 
-	if (policySetSecret(hSrkPolicy, strlen(szSrkPasswd), szSrkPasswd)
+	if (policySetSecret(hSrkPolicy, srk_len, szSrkPasswd)
 		    != TSS_SUCCESS)
 		goto out_obj_close;
 

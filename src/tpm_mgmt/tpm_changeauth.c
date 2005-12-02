@@ -44,9 +44,15 @@ static BOOL changeRequested = FALSE;
 static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
 	logCmdOption("-o, --owner", _("Change the owner password."));
 	logCmdOption("-s, --srk", _("Change the SRK password."));
+	logCmdOption("-g, --original_password_unicode", _("Use TSS UNICODE encoding for original password to comply with applications using TSS popup boxes"));
+	logCmdOption("-n, --new_password_unicode", _("Use TSS UNICODE encoding for new password to comply with applications using TSS popup boxes"));
 }
+
+static BOOL origUnicode = FALSE;
+static BOOL newUnicode = FALSE;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -60,6 +66,12 @@ static int parse(const int aOpt, const char *aArg)
 	case 's':
 		auths[srk].change = TRUE;
 		changeRequested = TRUE;
+		break;
+	case 'g':
+		origUnicode = TRUE;
+		break;
+	case 'n':
+		newUnicode = TRUE;
 		break;
 	default:
 		return -1;
@@ -88,18 +100,21 @@ int main(int argc, char **argv)
 
 	int i = 0, iRc = -1;
 	char *passwd = NULL;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HPOLICY hTpmPolicy, hNewPolicy;
 	TSS_HTPM hTpm;
 	TSS_HTPM hSrk;
 	struct option opts[] = { {"owner", no_argument, NULL, 'o'},
-	{"srk", no_argument, NULL, 's'}
+	{"srk", no_argument, NULL, 's'},
+	{"original_password_unicode", no_argument, NULL, 'g'},
+	{"new_password_unicode", no_argument, NULL, 'n'},
 	};
 
         initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "so", opts, sizeof(opts) / sizeof(struct option),
+	    (argc, argv, "sogn", opts, sizeof(opts) / sizeof(struct option),
 	     parse, help) != 0)
 		goto out;
 
@@ -118,7 +133,7 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	//Prompt for owner password
-	passwd = getPasswd(_("Enter owner password: "), FALSE);
+	passwd = _getPasswd(_("Enter owner password: "), &pswd_len, FALSE, origUnicode || useUnicode );
 	if (!passwd) {
 		logError(_("Failed to get owner password\n"));
 		goto out_close;
@@ -126,7 +141,7 @@ int main(int argc, char **argv)
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
 	if (policySetSecret
-	    (hTpmPolicy, strlen(passwd), passwd) != TSS_SUCCESS)
+	    (hTpmPolicy, pswd_len, passwd) != TSS_SUCCESS)
 		goto out_close;
 
 	shredPasswd(passwd);
@@ -135,7 +150,7 @@ int main(int argc, char **argv)
 	do {
 		if (auths[i].change) {
 			logInfo(_("Changing password for: %s.\n"), _(auths[i].name));
-			passwd = getPasswd(_(auths[i].prompt), TRUE);
+			passwd = _getPasswd(_(auths[i].prompt), &pswd_len, TRUE, newUnicode || useUnicode );
 			if (!passwd) {
 				logError(_("Failed to get new password.\n"));
 				goto out_close;
@@ -147,7 +162,7 @@ int main(int argc, char **argv)
 				goto out_close;
 
 			if (policySetSecret
-			    (hNewPolicy, strlen(passwd),
+			    (hNewPolicy, pswd_len,
 			     passwd) != TSS_SUCCESS)
 				goto out_close;
 

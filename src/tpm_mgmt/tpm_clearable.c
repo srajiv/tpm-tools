@@ -25,6 +25,7 @@
 static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
 	logCmdOption("-s, --status",
 		     _("Report current status."));
 	logCmdOption("-o, --owner",
@@ -86,6 +87,7 @@ int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd = NULL;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
@@ -115,7 +117,7 @@ int main(int argc, char **argv)
 
 	if (bCheck || !bChangeRequested) {
 		logInfo(_("Checking current status: \n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 		if (!szTpmPasswd) {
 			logMsg(_("Failed to get password\n"));
 			goto out_close;
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
 
 		if (policySetSecret
 		    (hTpmPolicy,
-		     strlen(szTpmPasswd), szTpmPasswd) != TSS_SUCCESS)
+		     pswd_len, szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 		do {
 			TSS_BOOL bValue;
@@ -147,7 +149,7 @@ int main(int argc, char **argv)
 			if (i == owner) {
 				szTpmPasswd =
 				    getPasswd(_("Enter owner password: "),
-					      FALSE);
+					      &pswd_len, FALSE);
 				if (!szTpmPasswd) {
 					logMsg(_("Failed to get password\n"));
 					goto out_close;
@@ -158,7 +160,7 @@ int main(int argc, char **argv)
 
 				if (policySetSecret
 				    (hTpmPolicy,
-				     strlen(szTpmPasswd),
+				     pswd_len,
 				     szTpmPasswd) != TSS_SUCCESS)
 					goto out_close;
 			}

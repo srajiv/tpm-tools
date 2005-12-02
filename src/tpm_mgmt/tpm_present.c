@@ -64,6 +64,7 @@ static TSS_BOOL bValue;
 static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
 	logCmdOption("-s, --status",
 		     _("Report current physical presence states."));
 	logCmdOption("-a, --assert", _("Assert that admin is present."));
@@ -157,6 +158,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	BOOL bRc;
 	TSS_HPOLICY hTpmPolicy;
 	char *pwd = NULL;
+	int pswd_len;
 	char rsp[5];
 
 	//get status w/o owner auth (FAILS 1.1, should PASS 1.2)
@@ -168,14 +170,14 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 		    (_("Unable to determine current state without authorization\n"));
 		if (isTpmOwned(hContext)) {
 			logDebug(_("TPM is owned\n"));
-			pwd = getPasswd(_("Enter owner password: "), FALSE);
+			pwd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!pwd)
 				goto warn;
 
 			if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 				goto warn;
 
-			if (policySetSecret(hTpmPolicy, strlen(pwd), pwd)
+			if (policySetSecret(hTpmPolicy, pswd_len, pwd)
 			    != TSS_SUCCESS)
 				goto warn;
 			//get status w/ owner auth
@@ -240,6 +242,7 @@ int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
@@ -276,7 +279,7 @@ int main(int argc, char **argv)
 
 	if (bCheck || !bChangeRequested) {
 		logInfo(_("Checking current status: \n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 		if (!szTpmPasswd) {
 			logError(_("Failed to get owner password\n"));
 			goto out_close;
@@ -285,7 +288,7 @@ int main(int argc, char **argv)
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
 
-		if (policySetSecret(hTpmPolicy, strlen(szTpmPasswd),
+		if (policySetSecret(hTpmPolicy, pswd_len,
 				    szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 

@@ -38,6 +38,7 @@ static void help(const char *cmd)
 {
 
 	logCmdHelp(cmd);
+	logUnicodeCmdOption();
 	logCmdOption("-s, --status", _("Display current state"));
 	logCmdOption("-e, --enable", _("Enable TPM"));
 	logCmdOption("-d, --disable", _("Disable TPM"));
@@ -76,6 +77,7 @@ int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd = NULL;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_BOOL bValue;
@@ -106,7 +108,7 @@ int main(int argc, char **argv)
 
 	if ( request == STATUS_CHECK) {
 		logInfo( _("Checking current status:\n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 		if (!szTpmPasswd) {
 			logMsg(_("Failed to get owner password\n"));
 			goto out_close;
@@ -115,7 +117,7 @@ int main(int argc, char **argv)
 			goto out_close;
 
 		if (policySetSecret
-		    (hTpmPolicy, strlen(szTpmPasswd),
+		    (hTpmPolicy, pswd_len,
 		     szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 		if (tpmGetStatus
@@ -126,7 +128,7 @@ int main(int argc, char **argv)
 	}else {
 		if (fForce == TSS_TPMSTATUS_OWNERSETDISABLE) {
 			//Prompt for owner password
-			szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!szTpmPasswd) {
 				logError(_("Failed to get owner password\n"));
 				goto out_close;
@@ -136,7 +138,7 @@ int main(int argc, char **argv)
 				goto out_close;
 
 			if (policySetSecret
-			    (hTpmPolicy, strlen(szTpmPasswd),
+			    (hTpmPolicy, pswd_len,
 			     szTpmPasswd) != TSS_SUCCESS)
 				goto out_close;
 			}

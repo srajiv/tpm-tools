@@ -21,16 +21,21 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <trousers/tss.h>
+#include <trousers/trousers.h>
 
 #include "tpm_utils.h"
+
+BOOL useUnicode = FALSE;
 
 static const struct option sGenLongOpts[] = {
 	{ "help", no_argument, NULL, 'h' },
 	{ "version", no_argument, NULL, 'v' },
 	{ "log", required_argument, NULL, 'l' },
+	{ "unicode", no_argument, NULL, 'u' },
 };
 
-static const char *pszGenShortOpts = "hvl:";
+static const char *pszGenShortOpts = "hvl:u";
 
 void initIntlSys( ) {
 
@@ -106,7 +111,9 @@ genericOptHandler( int a_iNumArgs, char **a_pszArgs,
 					return -1;
 				}
 				break;
-
+			case 'u':
+				useUnicode = TRUE;
+				break;
 			case '?':
 				tCmdHelp( a_pszArgs[0] );
 				return -1;
@@ -142,7 +149,13 @@ void shredPasswd( char *a_pszPasswd ) {
  * Loop will always terminate by the second pass.
  * Safest use of getpass is to zero the memory as soon as possible.
  */
-char *getPasswd(const char *a_pszPrompt, BOOL a_bConfirm) {
+char *getPasswd(const char *a_pszPrompt, int* a_iLen, 
+		BOOL a_bConfirm) {
+	return _getPasswd( a_pszPrompt, a_iLen, a_bConfirm, useUnicode);
+}
+
+char *_getPasswd(const char *a_pszPrompt, int* a_iLen, 
+		BOOL a_bConfirm, BOOL a_bUseUnicode) {
 
 	char *pszPrompt = (char *)a_pszPrompt;
 	char *pszPasswd = NULL;
@@ -152,7 +165,7 @@ char *getPasswd(const char *a_pszPrompt, BOOL a_bConfirm) {
 		// Get password value from user - this is a static buffer
 		// and should never be freed
 		pszPasswd = getpass( pszPrompt );
-		if (!pszPasswd) {
+		if (!pszPasswd && pszRetPasswd) {
 			shredPasswd( pszRetPasswd );
 			return NULL;
 		}
@@ -181,6 +194,15 @@ char *getPasswd(const char *a_pszPrompt, BOOL a_bConfirm) {
 	} while (a_bConfirm);
 
 out:
+	if (pszRetPasswd) {
+		*a_iLen = strlen(pszRetPasswd);
+
+		if (a_bUseUnicode) {
+			shredPasswd(pszRetPasswd);
+			pszRetPasswd = Trspi_Native_To_UNICODE(pszPasswd, a_iLen);
+		}
+	}
+
 	// pszPasswd is a static buffer, just clear it
 	if ( pszPasswd )
 		memset( pszPasswd, 0, strlen( pszPasswd ) );

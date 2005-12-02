@@ -74,11 +74,13 @@ int genericOptHandler( int a_iNumArgs, char **a_pszArgs,
 		       const char *a_pszShortOpts,
 		       struct option *a_psLongOpts, int a_iNumOpts,
 		       CmdOptParser, CmdHelpFunction );
-char *getPasswd( const char *a_pszPrompt, BOOL a_bConfirm );
+char *getPasswd( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm );
+char *_getPasswd( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm, BOOL a_bUseUnicode);
 void  shredPasswd( char *a_pszPasswd );
 char *getReply( const char *a_pszPrompt, int a_iMaxLen );
 
 extern int iLogLevel;
+extern BOOL useUnicode;
 
 int logHex( int a_iLen, void *a_pData );
 int logMsg( const char *a_pszFormat, ... );
@@ -91,6 +93,7 @@ int logIt( FILE *a_pStream, const char *a_pszFormat, va_list a_vaArgs );
 
 void  logSuccess( const char *a_pszCmd );
 void  logCmdOption( const char *a_pszOption, const char *a_pszDescr );
+void  logUnicodeCmdOption( );
 void  logGenericOptions( );
 void  logCmdHelp( const char *a_pszCmd );
 void  logCmdHelpEx( const char *a_pszCmd, char *a_pszArgs[], char *a_pszArgDescs[] );

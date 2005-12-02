@@ -34,6 +34,7 @@ static int request = STATUS_CHECK;
 static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
 	logCmdOption("-s, --status", _("Report current state"));
 	logCmdOption("-a, --active", _("Activate TPM, requires reboot"));
 	logCmdOption("-i, --inactive", _("Deactivate TPM, requires reboot"));
@@ -77,6 +78,7 @@ int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd = NULL;
+	int tpm_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
@@ -107,7 +109,7 @@ int main(int argc, char **argv)
 	switch(request) {
 	case STATUS_CHECK:
 		logInfo(_("Checking status:\n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, FALSE);
 		if (!szTpmPasswd) {
 			logMsg(_("Failed to get password\n"));
 			goto out_close;
@@ -116,7 +118,7 @@ int main(int argc, char **argv)
 			goto out_close;
 
 		if (policySetSecret
-		    (hTpmPolicy, strlen(szTpmPasswd),
+		    (hTpmPolicy, tpm_len,
 		     szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 		if (tpmGetStatus

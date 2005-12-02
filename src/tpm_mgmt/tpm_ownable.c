@@ -61,6 +61,7 @@ static void help(const char *aCmd)
 {
 
 	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
 	logCmdOption("-s, --status", _("Display current status"));
 	logCmdOption("-a, --allow", _("Allow TPM takeownership command"));
 	logCmdOption("-p, --prevent", _("Prevent TPM takeownership command"));
@@ -70,6 +71,7 @@ int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd = NULL;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HPOLICY hTpmPolicy;
 	TSS_HTPM hTpm;
@@ -96,7 +98,7 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	if (bCheck || !changeRequested) {
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 		if (!szTpmPasswd) {
 			logMsg(_("Failed to get password\n"));
 			goto out_close;
@@ -105,7 +107,7 @@ int main(int argc, char **argv)
 			goto out_close;
 
 		if (policySetSecret
-		    (hTpmPolicy, strlen(szTpmPasswd),
+		    (hTpmPolicy, pswd_len,
 		     szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 		if (tpmGetStatus

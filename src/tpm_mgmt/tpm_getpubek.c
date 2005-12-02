@@ -22,10 +22,17 @@
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
 
+static void help(const char* aCmd)
+{
+	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
+}
+
 int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd = NULL;
+	int pswd_len;
 	TSS_RESULT tResult;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
@@ -35,7 +42,7 @@ int main(int argc, char **argv)
 
         initIntlSys();
 
-	if (genericOptHandler(argc, argv, NULL, NULL, 0, NULL, NULL) != 0)
+	if (genericOptHandler(argc, argv, NULL, NULL, 0, NULL, help) != 0)
 		goto out;
 
 	if (contextCreate(&hContext) != TSS_SUCCESS)
@@ -52,7 +59,7 @@ int main(int argc, char **argv)
 		logInfo
 		    (_("Public PubEk access blocked, owner password required\n"));
 		// Prompt for owner password
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 		if (!szTpmPasswd)
 			goto out_close;
 
@@ -60,7 +67,7 @@ int main(int argc, char **argv)
 			goto out_close;
 
 		if (policySetSecret
-		    (hTpmPolicy, strlen(szTpmPasswd),
+		    (hTpmPolicy, pswd_len,
 		     szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 

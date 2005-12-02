@@ -38,6 +38,7 @@ static inline TSS_RESULT tpmClearOwner(TSS_HTPM a_hTpm, BOOL a_bValue)
 static void help(const char *aCmd)
 {
 	logCmdHelp(aCmd);
+	logUnicodeCmdOption();
 	logCmdOption("-f, --force", _("Use physical presence authorization."));
 }
 
@@ -60,6 +61,7 @@ int main(int argc, char **argv)
 {
 
 	char *szTpmPasswd = NULL;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
@@ -85,7 +87,7 @@ int main(int argc, char **argv)
 
 	if (!bValue) {
 		//Prompt for owner password
-		szTpmPasswd = getPasswd(_("Enter owner password: "), FALSE);
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
 		if (!szTpmPasswd) {
 			logError(_("Failed to get owner password\n"));
 			goto out_close;
@@ -94,7 +96,7 @@ int main(int argc, char **argv)
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
 
-		if (policySetSecret(hTpmPolicy, strlen(szTpmPasswd),
+		if (policySetSecret(hTpmPolicy, pswd_len,
 				    szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 	}
