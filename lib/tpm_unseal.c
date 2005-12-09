@@ -62,6 +62,7 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 #define EVPKEY_DEFAULT_SIZE 312
 
 int tpm_errno;
+TSS_UUID SRK_UUID = TSS_UUID_SRK;
 
 int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
@@ -161,7 +162,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	b64 = NULL;
 
 	start += ((tssLen * 4)+2)/3; //add base64 chars
-	start += 3 - ((tssLen * 4)%3); //add base64 pad
+	start += 2 - (((tssLen * 4)+2)%3); //add base64 pad
 	start += ((((tssLen * 4)+2)/3)+63)/64; //add base64 nl
 
 	/* looking for EVP Key Header */
@@ -192,8 +193,8 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	evpKeyDataSize = EVPKEY_DEFAULT_SIZE;
 
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
-    tpm_errno = EAGAIN;
-    rc = TPMSEAL_STD_ERROR;
+		tpm_errno = EAGAIN;
+		rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
@@ -219,7 +220,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	b64 = NULL;
 
 	start += ((evpLen * 4)+2)/3; //add base64 chars
-	start += 3 - ((evpLen * 4)%3); //add base64 pad
+	start += 2 - (((evpLen * 4)+2)%3); //add base64 pad
 	start += ((((evpLen * 4)+2)/3)+63)/64; //add base64 nl
 
 	/* looking for ENC Data Header */
@@ -275,6 +276,18 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
         if ((rc=Tspi_Context_LoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, 
 					SRK_UUID, &hSrk)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBU;
+		goto tss_out;
+	}
+
+	if ((rc=Tspi_GetPolicyObject(hSrk, TSS_POLICY_USAGE, 
+					&hPolicy)) != TSS_SUCCESS){
+		tpm_errno = ETSPIGETPO;
+		goto tss_out;
+	}
+
+	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 0, NULL)) 
+					!= TSS_SUCCESS) {
+		tpm_errno = ETSPIPOLSS;
 		goto tss_out;
 	}
 
@@ -336,7 +349,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	res_size += rcLen;
 
 	start += ((datLen * 4)+2)/3; //add base64 chars
-	start += 3 - ((datLen * 4)%3); //add base64 pad
+	start += 2 - (((datLen * 4)+2)%3); //add base64 pad
 	start += ((((datLen * 4)+2)/3)+63)/64; //add base64 nl
 
 	/* looking for Footer */
