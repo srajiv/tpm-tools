@@ -124,7 +124,7 @@ main( int    a_iArgc,
 		}
 
 		// Prompt for the current SO password
-		pszSoPin = getPasswd( TOKEN_SO_PIN_PROMPT, FALSE );
+		pszSoPin = getPlainPasswd( TOKEN_SO_PIN_PROMPT, FALSE );
 		if ( !pszSoPin )
 			goto done;
 	}
@@ -149,7 +149,7 @@ main( int    a_iArgc,
 	sprintf( szSoNewPinPrompt, TOKEN_SO_NEW_PIN_PROMPT, getMinPinLen( ), getMaxPinLen( ) );
 	while ( TRUE ) {
 		// Prompt for a new SO password
-		pszNewSoPin = getPasswd( szSoNewPinPrompt, TRUE );
+		pszNewSoPin = getPlainPasswd( szSoNewPinPrompt, TRUE );
 		if ( !pszNewSoPin )
 			goto done;
 
@@ -181,7 +181,7 @@ main( int    a_iArgc,
 	sprintf( szUserNewPinPrompt, TOKEN_USER_NEW_PIN_PROMPT, getMinPinLen( ), getMaxPinLen( ) );
 	while ( TRUE ) {
 		// Prompt for a new User password
-		pszNewUserPin = getPasswd( szUserNewPinPrompt, TRUE );
+		pszNewUserPin = getPlainPasswd( szUserNewPinPrompt, TRUE );
 		if ( !pszNewUserPin )
 			goto done;
 

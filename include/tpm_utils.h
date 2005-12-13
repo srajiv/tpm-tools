@@ -74,6 +74,7 @@ int genericOptHandler( int a_iNumArgs, char **a_pszArgs,
 		       const char *a_pszShortOpts,
 		       struct option *a_psLongOpts, int a_iNumOpts,
 		       CmdOptParser, CmdHelpFunction );
+char *getPlainPasswd( const char* a_pszPrompt, BOOL a_bConfirm );
 char *getPasswd( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm );
 char *_getPasswd( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm, BOOL a_bUseUnicode);
 void  shredPasswd( char *a_pszPasswd );

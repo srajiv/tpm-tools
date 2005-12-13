@@ -137,7 +137,7 @@ main( int    a_iArgc,
 		pszPrompt = TOKEN_USER_PIN_PROMPT;
 		tUser = CKU_USER;
 	}
-	pszPin = getPasswd( pszPrompt, FALSE );
+	pszPin = getPlainPasswd( pszPrompt, FALSE );
 	if ( !pszPin )
 		goto done;
 
@@ -158,7 +158,7 @@ main( int    a_iArgc,
 
 	while ( TRUE ) {
 		// Prompt for a new SO password
-		pszNewPin = getPasswd( pszPrompt, TRUE );
+		pszNewPin = getPlainPasswd( pszPrompt, TRUE );
 		if ( !pszNewPin )
 			goto done;
 

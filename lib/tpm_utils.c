@@ -149,6 +149,11 @@ void shredPasswd( char *a_pszPasswd ) {
  * Loop will always terminate by the second pass.
  * Safest use of getpass is to zero the memory as soon as possible.
  */
+char *getPlainPasswd(const char *a_pszPrompt, BOOL a_bConfirm) {
+	int len;
+	return _getPasswd(a_pszPrompt, &len, a_bConfirm, FALSE);
+}
+
 char *getPasswd(const char *a_pszPrompt, int* a_iLen, 
 		BOOL a_bConfirm) {
 	return _getPasswd( a_pszPrompt, a_iLen, a_bConfirm, useUnicode);

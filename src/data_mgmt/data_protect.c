@@ -433,7 +433,7 @@ main( int    a_iArgc,
 	if ( rv != CKR_OK )
 		goto done;
 
-	pszPin = getPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
+	pszPin = getPlainPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
 	if ( !pszPin )
 		goto done;
 

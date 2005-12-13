@@ -1075,7 +1075,7 @@ main( int    a_iArgc,
 	//   Public  = no password, no login
 	//   Private = user password, user login (default)
 	if ( !g_bPublic ) {
-		pszPin = getPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
+		pszPin = getPlainPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
 		if ( !pszPin )
 			goto done;
 
