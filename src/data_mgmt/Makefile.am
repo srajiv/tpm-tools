@@ -31,7 +31,7 @@ bin_PROGRAMS	=	tpmtoken_init		\
 # Common build flags
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 
-AM_LDFLAGS	=	-lopencryptoki
+AM_LDFLAGS	=	-lopencryptoki -ltspi
 
 LDADD		=	$(top_builddir)/lib/libtpm_pkcs11.la
 
