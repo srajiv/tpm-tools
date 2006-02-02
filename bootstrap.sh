@@ -33,9 +33,9 @@ touch mkinstalldirs
 cp -R po_/* po/
 touch po/Makefile.in.in
 touch m4/Makefile.am
-gettextize --force --no-changelog || exit
+gettextize -c --force --no-changelog || exit
 
 aclocal || exit
-libtoolize || exit 
-automake --add-missing --foreign || exit 
+libtoolize -c || exit 
+automake -c --add-missing --foreign || exit 
 autoconf
