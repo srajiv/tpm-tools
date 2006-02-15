@@ -42,4 +42,4 @@ rm missing
 rm libtool
 find . -name Makefile -exec rm {} \;
 find . -name Makefile.in -exec rm {} \;
-find . -name .deps -depth -exec  rm -rf {} \;
+find . -depth -name .deps -exec  rm -rf {} \;

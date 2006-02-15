@@ -204,7 +204,7 @@ out:
 
 		if (a_bUseUnicode) {
 			shredPasswd(pszRetPasswd);
-			pszRetPasswd = Trspi_Native_To_UNICODE(pszPasswd, a_iLen);
+			pszRetPasswd = (char *)Trspi_Native_To_UNICODE((BYTE *)pszPasswd, (unsigned int *)a_iLen);
 		}
 	}
 

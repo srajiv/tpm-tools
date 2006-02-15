@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 	{"outfile", required_argument, NULL, 'o'},
 	{"pcr", required_argument, NULL, 'p'}
 	};
-	unsigned char line[66];		/* 64 data \n \0 */
+	char line[66];		/* 64 data \n \0 */
 	unsigned char encData[64];
 	int encDataLen;
 	UINT32 encLen;
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 	if (policyGet(hKey, &hPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), TPMSEAL_SECRET)
+	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), (BYTE *)TPMSEAL_SECRET)
 	    != TSS_SUCCESS)
 		goto out_close;
 
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 	if (policyGet(hEncdata, &hPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), TPMSEAL_SECRET)
+	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), (BYTE *)TPMSEAL_SECRET)
 	    != TSS_SUCCESS)
 		goto out_close;
 
@@ -267,11 +267,11 @@ int main(int argc, char **argv)
 	bdata = BIO_push(b64, bdata);
 
 	EVP_CIPHER_CTX ctx;
-	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, TPMSEAL_IV);
+	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, (unsigned char *)TPMSEAL_IV);
 
 	do {
 		EVP_EncryptUpdate(&ctx, encData, &encDataLen,
-				  line, strlen(line));
+				  (unsigned char *)line, strlen(line));
 		BIO_write(bdata, encData, encDataLen);
 	} while (BIO_read(bin, line, sizeof(line)) > 0);
 

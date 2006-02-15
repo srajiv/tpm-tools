@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hTpmPolicy, tpm_len, szTpmPasswd)
+	if (policySetSecret(hTpmPolicy, tpm_len, (BYTE *)szTpmPasswd)
 	    != TSS_SUCCESS)
 		goto out_close;
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
 		goto out_obj_close;
 
-	if (policySetSecret(hSrkPolicy, srk_len, szSrkPasswd)
+	if (policySetSecret(hSrkPolicy, srk_len, (BYTE *)szSrkPasswd)
 		    != TSS_SUCCESS)
 		goto out_obj_close;
 

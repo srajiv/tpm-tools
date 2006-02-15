@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
 	if (policySetSecret
-	    (hTpmPolicy, pswd_len, passwd) != TSS_SUCCESS)
+	    (hTpmPolicy, pswd_len, (BYTE *)passwd) != TSS_SUCCESS)
 		goto out_close;
 
 	shredPasswd(passwd);
@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 
 			if (policySetSecret
 			    (hNewPolicy, pswd_len,
-			     passwd) != TSS_SUCCESS)
+			     (BYTE *)passwd) != TSS_SUCCESS)
 				goto out_close;
 
 			if (i == owner) {

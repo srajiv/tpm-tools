@@ -67,11 +67,11 @@ TSS_UUID SRK_UUID = TSS_UUID_SRK;
 int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
 	int start, rc, rcLen=0, tssLen=0, evpLen=0, datLen=0;
-	char* rcPtr;
+	BYTE* rcPtr;
 	char data[MAX_LINE_LEN];
-	char *tssKeyData = NULL;
+	BYTE *tssKeyData = NULL;
 	int tssKeyDataSize = 0;
-	char *evpKeyData = NULL;
+	BYTE *evpKeyData = NULL;
 	int evpKeyDataSize = 0;
 	struct stat stats;
         TSS_HCONTEXT hContext;
@@ -268,7 +268,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
         if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
 					strlen(TPMSEAL_SECRET), 
-					TPMSEAL_SECRET)) != TSS_SUCCESS) {
+					(BYTE *)TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out;
 	}
@@ -306,7 +306,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
 	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
 					strlen(TPMSEAL_SECRET), 
-					TPMSEAL_SECRET)) != TSS_SUCCESS) {
+					(BYTE *)TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out;
 	}
@@ -334,14 +334,14 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
         /* Decrypt */
         EVP_CIPHER_CTX ctx;
-        EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, TPMSEAL_IV);
+        EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, (unsigned char *)TPMSEAL_IV);
 
        	/* retrieve the encrypted data needed */
 	bdata = BIO_push(b64, bdata);
         while ((rcLen = BIO_read(bdata, data, sizeof(data))) > 0 ) {
 		datLen += rcLen;
 		EVP_DecryptUpdate(&ctx, res_data+res_size, 
-					&rcLen, data, rcLen);
+					&rcLen, (unsigned char *)data, rcLen);
 		res_size += rcLen;
         }
 	bdata = BIO_pop(b64);

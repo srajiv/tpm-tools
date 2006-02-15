@@ -79,7 +79,7 @@ parseCallback( int         a_iOpt,
 			if ( !a_pszOptArg )
 				return -1;
 
-			g_pchName = strdup( a_pszOptArg );
+			g_pchName = (CK_BYTE *)strdup( a_pszOptArg );
 			g_ulNameLen = strlen( a_pszOptArg );
 			break;
 
@@ -977,13 +977,13 @@ getSubjectId( X509 *a_pX509 ) {
 	}
 
 	// Get the ASCII string format of the subject key identifier
-	g_pchId = i2s_ASN1_OCTET_STRING( NULL, pSkid );
+	g_pchId = (CK_BYTE *)i2s_ASN1_OCTET_STRING( NULL, pSkid );
 	if ( !g_pchId ) {
 		logInfo( TOKEN_OPENSSL_ERROR,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
 	}
-	g_ulIdLen = strlen( g_pchId );
+	g_ulIdLen = strlen( (char *)g_pchId );
 
 	g_bAttrsValid = TRUE;
 

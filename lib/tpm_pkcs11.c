@@ -80,9 +80,9 @@ pkcsSlotInfo(CK_SLOT_INFO *a_ptSlotInfo ) {
 	memset( szSlotDesc, 0, sizeof( szSlotDesc ) );
 	memset( szSlotMfr, 0, sizeof( szSlotMfr ) );
 
-	strncpy( szSlotDesc, a_ptSlotInfo->slotDescription,
+	strncpy( szSlotDesc, (char *)a_ptSlotInfo->slotDescription,
 			sizeof( a_ptSlotInfo->slotDescription ) );
-	strncpy( szSlotMfr, a_ptSlotInfo->manufacturerID,
+	strncpy( szSlotMfr, (char *)a_ptSlotInfo->manufacturerID,
 			sizeof( a_ptSlotInfo->manufacturerID ) );
 
 	logDebug( _("Slot description: %s\n"), szSlotDesc );
@@ -108,11 +108,11 @@ pkcsTokenInfo(CK_TOKEN_INFO *a_ptTokenInfo ) {
 	memset( szTokenMfr, 0, sizeof( szTokenMfr ) );
 	memset( szTokenModel, 0, sizeof( szTokenModel ) );
 
-	strncpy( szTokenLabel, a_ptTokenInfo->label,
+	strncpy( szTokenLabel, (char *)a_ptTokenInfo->label,
 			sizeof( a_ptTokenInfo->label ) );
-	strncpy( szTokenMfr, a_ptTokenInfo->manufacturerID,
+	strncpy( szTokenMfr, (char *)a_ptTokenInfo->manufacturerID,
 			sizeof( a_ptTokenInfo->manufacturerID ) );
-	strncpy( szTokenModel, a_ptTokenInfo->model,
+	strncpy( szTokenModel, (char *)a_ptTokenInfo->model,
 			sizeof( a_ptTokenInfo->model ) );
 
 	logDebug( _("Token Label: %s\n"), szTokenLabel );
@@ -201,7 +201,7 @@ openToken( ) {
 			pkcsTokenInfo( &tTokenInfo );
 
 			// Check for the TPM token
-			if ( !strncmp( tTokenInfo.label, szTokenLabel, sizeof( szTokenLabel ) ) ) {
+			if ( !strncmp( (char *)tTokenInfo.label, szTokenLabel, sizeof( szTokenLabel ) ) ) {
 				g_bTokenOpen = TRUE;
 				g_tSlotId = ptSlots[ i ];
 				g_tToken = tTokenInfo;
@@ -253,7 +253,7 @@ initToken( char *a_pszPin ) {
 	if ( !g_bTokenOpen )
 		return CKR_TOKEN_NOT_PRESENT;
 
-	rv = C_InitToken( g_tSlotId, a_pszPin, strlen( a_pszPin ), g_tToken.label );
+	rv = C_InitToken( g_tSlotId, (CK_CHAR *)a_pszPin, strlen( a_pszPin ), g_tToken.label );
 	pkcsResult( "C_InitToken", rv );
 
 	return rv;
@@ -323,7 +323,7 @@ loginToken( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_Login( a_hSession, a_tType, a_pszPin, strlen( a_pszPin ) );
+	rv = C_Login( a_hSession, a_tType, (CK_CHAR *)a_pszPin, strlen( a_pszPin ) );
 	pkcsResult( "C_Login", rv );
 
 	return rv;
@@ -338,7 +338,7 @@ initPin( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_InitPIN( a_hSession, a_pszPin, strlen( a_pszPin ) );
+	rv = C_InitPIN( a_hSession, (CK_CHAR *)a_pszPin, strlen( a_pszPin ) );
 	pkcsResult( "C_InitPIN", rv );
 
 	return rv;
@@ -355,8 +355,8 @@ setPin( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_SetPIN( a_hSession, a_pszOldPin, strlen( a_pszOldPin ),
-			a_pszNewPin, strlen( a_pszNewPin ) );
+	rv = C_SetPIN( a_hSession, (CK_CHAR *)a_pszOldPin, strlen( a_pszOldPin ),
+			(CK_CHAR *)a_pszNewPin, strlen( a_pszNewPin ) );
 	pkcsResult( "C_SetPIN", rv );
 
 	return rv;

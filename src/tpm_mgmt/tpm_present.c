@@ -177,7 +177,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 			if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 				goto warn;
 
-			if (policySetSecret(hTpmPolicy, pswd_len, pwd)
+			if (policySetSecret(hTpmPolicy, pswd_len, (BYTE *)pwd)
 			    != TSS_SUCCESS)
 				goto warn;
 			//get status w/ owner auth
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 			goto out_close;
 
 		if (policySetSecret(hTpmPolicy, pswd_len,
-				    szTpmPasswd) != TSS_SUCCESS)
+				    (BYTE *)szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 
 		logMsg(_("Physical Presence Status:\n"));

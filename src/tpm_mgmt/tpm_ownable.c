@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 
 		if (policySetSecret
 		    (hTpmPolicy, pswd_len,
-		     szTpmPasswd) != TSS_SUCCESS)
+		     (BYTE *)szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 		if (tpmGetStatus
 		    (hTpm, TSS_TPMSTATUS_SETOWNERINSTALL,

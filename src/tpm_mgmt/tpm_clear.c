@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 			goto out_close;
 
 		if (policySetSecret(hTpmPolicy, pswd_len,
-				    szTpmPasswd) != TSS_SUCCESS)
+				    (BYTE *)szTpmPasswd) != TSS_SUCCESS)
 			goto out_close;
 	}
 	//Setup complete attempt command
