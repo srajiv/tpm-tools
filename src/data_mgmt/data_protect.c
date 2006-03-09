@@ -47,13 +47,15 @@ CK_ULONG  g_ulOutBuffLen = 0;		// Output file buffer length
 CK_BYTE  *g_pbOutData    = NULL;	// Output file buffer
 CK_ULONG  g_ulOutDataLen = 0;		// Length of data contained in output buffer
 
+char     *g_pszToken     = NULL;	// Token label to be used
+
 /*
  * parseCallback
  *   Process the command specific options.
  */
 int
 parseCallback( int         a_iOpt,
-               const char *a_szOptArg ) {
+               const char *a_pszOptArg ) {
 
 	switch ( a_iOpt ) {
 		case 'd':
@@ -65,17 +67,25 @@ parseCallback( int         a_iOpt,
 			break;
 
 		case 'i':
-			if ( !a_szOptArg )
+			if ( !a_pszOptArg )
 				return -1;
 
-			g_pszInFile = strdup( a_szOptArg );
+			g_pszInFile = strdup( a_pszOptArg );
+			break;
+
+		// Use the specified token label when finding the token
+		case 'k':
+			if ( !a_pszOptArg )
+				return -1;
+
+			g_pszToken = strdup( a_pszOptArg );
 			break;
 
 		case 'o':
-			if ( !a_szOptArg )
+			if ( !a_pszOptArg )
 				return -1;
 
-			g_pszOutFile = strdup( a_szOptArg );
+			g_pszOutFile = strdup( a_pszOptArg );
 			break;
 	}
 
@@ -96,6 +106,8 @@ usageCallback( const char *a_szCmd ) {
 			_("Encrypt the input data") );
 	logCmdOption( "-i, --infile FILE",
 			_("Use FILE as the input to the specified operation") );
+	logCmdOption( "-k, --token STRING",
+			_("Use STRING to identify the label of the PKCS#11 token to be used") );
 	logCmdOption( "-o, --outfile FILE",
 			_("Use FILE as the output of the specified operation") );
 }
@@ -110,11 +122,12 @@ parseCmd( int    a_iArgc,
 
 	int  rc;
 
-	char          *szShortOpts = "dei:o:";
+	char          *szShortOpts = "dei:k:o:";
 	struct option  stLongOpts[]  = {
 			{ "decrypt", no_argument, NULL, 'd' },
 			{ "encrypt", no_argument, NULL, 'e' },
 			{ "infile", required_argument, NULL, 'i' },
+			{ "token", required_argument, NULL, 'k' },
 			{ "outfile", required_argument, NULL, 'o' },
 		};
 	int  iNumLongOpts = sizeof( stLongOpts ) / sizeof( struct option );
@@ -418,7 +431,7 @@ main( int    a_iArgc,
 		goto out;
 
 	// Open the PKCS#11 TPM Token
-	rv = openToken( );
+	rv = openToken( g_pszToken );
 	if ( rv != CKR_OK )
 		goto out;
 

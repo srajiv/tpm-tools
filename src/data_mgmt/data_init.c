@@ -31,7 +31,8 @@
 #include <getopt.h>
 
 
-BOOL  g_bYes    = FALSE;
+BOOL  g_bYes      = FALSE;		// Yes/No prompt reply
+char *g_pszToken  = NULL;		// Token label to be used
 
 /*
  * parseCallback
@@ -42,6 +43,14 @@ parseCallback( int         a_iOpt,
                const char *a_pszOptArg ) {
 
 	switch ( a_iOpt ) {
+		// Use the specified token label when finding the token
+		case 'k':
+			if ( !a_pszOptArg )
+				return -1;
+
+			g_pszToken = strdup( a_pszOptArg );
+			break;
+
 		case 'y':
 			g_bYes = TRUE;
 			break;
@@ -58,6 +67,8 @@ void
 usageCallback( const char *a_pszCmd ) {
 
 	logCmdHelp( a_pszCmd );
+	logCmdOption( "-k, --token STRING",
+			_("Use STRING to identify the label of the PKCS#11 token to be used") );
 	logCmdOption( "-y, --yes",
 			_("Reply 'yes' to the clear TPM token prompt") );
 }
@@ -70,8 +81,9 @@ int
 parseCmd( int    a_iArgc,
           char **a_pszArgv ) {
 
-	char *pszShortOpts = "y";
+	char *pszShortOpts = "k:y";
 	struct option  stLongOpts[] = {
+					{ "token", required_argument, NULL, 'k' },
 					{ "yes", no_argument, NULL, 'y' },
 				};
 	int  iNumLongOpts = sizeof( stLongOpts ) / sizeof( struct option );
@@ -107,7 +119,7 @@ main( int    a_iArgc,
 		goto out;
 
 	// Open the PKCS#11 TPM Token
-	rv = openToken( );
+	rv = openToken( g_pszToken );
 	if ( rv != CKR_OK )
 		goto out;
 

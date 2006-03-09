@@ -48,6 +48,7 @@ char *g_pszIdFile = NULL;		// Object identification file name
 char *g_pszType   = NULL;		// Object import type
 int   g_bPublic   = FALSE;		// Public object specifier
 int   g_bYes      = FALSE;		// Yes/No prompt reply
+char *g_pszToken  = NULL;		// Token label to be used
 
 int       g_bAttrsValid  = FALSE;
 CK_BYTE  *g_pchSubject   = NULL;	// SUBJECT attribute value
@@ -72,6 +73,14 @@ parseCallback( int         a_iOpt,
 				return -1;
 
 			g_pszIdFile = strdup( a_pszOptArg );
+			break;
+
+		// Use the specified token label when finding the token
+		case 'k':
+			if ( !a_pszOptArg )
+				return -1;
+
+			g_pszToken = strdup( a_pszOptArg );
 			break;
 
 		// Name to use as the LABEL attribute value
@@ -116,17 +125,19 @@ parseCallback( int         a_iOpt,
 void
 usageCallback( const char *a_pszCmd ) {
 
-	char *szArgs[2];
-	char *szArgsDesc[2];
+	char *pszArgs[2];
+	char *pszArgsDesc[2];
 
-	szArgs[ 0 ] = "FILE";
-	szArgsDesc[ 0 ] = _("Import the PEM formatted RSA key and/or X.509 certificate object contained in FILE");
-	szArgs[ 1 ] = NULL;
-	szArgsDesc[ 1 ] = NULL;
+	pszArgs[ 0 ] = "FILE";
+	pszArgsDesc[ 0 ] = _("Import the PEM formatted RSA key and/or X.509 certificate object contained in FILE");
+	pszArgs[ 1 ] = NULL;
+	pszArgsDesc[ 1 ] = NULL;
 
-	logCmdHelpEx( a_pszCmd, szArgs, szArgsDesc );
+	logCmdHelpEx( a_pszCmd, pszArgs, pszArgsDesc );
 	logCmdOption( "-i, --idfile FILE",
 			_("Use FILE as the PEM formatted X.509 certificate input used to obtain the subject and id attributes") );
+	logCmdOption( "-k, --token STRING",
+			_("Use STRING to identify the label of the PKCS#11 token to be used") );
 	logCmdOption( "-n, --name STRING",
 			_("Use STRING as the label for the imported object(s)") );
 	logCmdOption( "-p, --public",
@@ -147,18 +158,19 @@ parseCmd( int    a_iArgc,
 
 	int  rc;
 
-	char          *szShortOpts   = "i:n:pt:y";
+	char          *pszShortOpts  = "i:k:n:pt:y";
 	struct option  stLongOpts[]  = {
 			{ "idfile", required_argument, NULL, 'i' },
 			{ "name", required_argument, NULL, 'n' },
 			{ "public", no_argument, NULL, 'p' },
+			{ "token", required_argument, NULL, 'k' },
 			{ "type", required_argument, NULL, 't' },
 			{ "yes", no_argument, NULL, 'y' },
 		};
 	int  iNumLongOpts = sizeof( stLongOpts ) / sizeof( struct option );
 
 	rc = genericOptHandler( a_iArgc, a_pszArgv,
-		szShortOpts, stLongOpts, iNumLongOpts,
+		pszShortOpts, stLongOpts, iNumLongOpts,
 		parseCallback, usageCallback );
 	if ( rc == -1 )
 		return -1;
@@ -1027,7 +1039,7 @@ main( int    a_iArgc,
 		goto out;
 
 	// Open the PKCS#11 TPM Token
-	rv = openToken( );
+	rv = openToken( g_pszToken );
 	if ( rv != CKR_OK )
 		goto out;
 

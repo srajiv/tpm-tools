@@ -47,7 +47,7 @@ void pkcsResultException(const char *a_pszName, CK_RV a_tResult, CK_RV a_tExcept
 void pkcsSlotInfo(CK_SLOT_INFO *a_ptSlotInfo);
 void pkcsTokenInfo(CK_TOKEN_INFO *a_ptTokenInfo);
 
-CK_RV openToken( );
+CK_RV openToken( char *a_pszTokenLabel );
 CK_RV closeToken( );
 
 CK_RV initToken( char *a_pszPin );

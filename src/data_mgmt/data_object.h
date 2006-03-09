@@ -22,4 +22,6 @@
 #ifndef __DATA_OBJECT_H
 #define __DATA_OBJECT_H
 
+#define NO_TOKEN_OBJECTS		_( "No objects found\n" )
+
 #endif

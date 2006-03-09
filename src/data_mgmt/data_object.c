@@ -34,8 +34,9 @@
 /*
  * Global variables
  */
-int  g_bPublic   = FALSE;		// Public object specifier
-int  g_bExtended = FALSE;		// Extended information display specifier
+int   g_bPublic   = FALSE;		// Public object specifier
+int   g_bExtended = FALSE;		// Extended information display specifier
+char *g_pszToken  = NULL;		// Token label to be used
 
 /*
  * parseCallback
@@ -46,6 +47,14 @@ parseCallback( int         a_iOpt,
                const char *a_pszOptArg ) {
 
 	switch ( a_iOpt ) {
+		// Use the specified token label when finding the token
+		case 'k':
+			if ( !a_pszOptArg )
+				return -1;
+
+			g_pszToken = strdup( a_pszOptArg );
+			break;
+
 		case 'p':
 			g_bPublic = TRUE;
 			break;
@@ -66,6 +75,8 @@ void
 usageCallback( const char *a_pszCmd ) {
 
 	logCmdHelp( a_pszCmd );
+	logCmdOption( "-k, --token STRING",
+			_("Use STRING to identify the label of the PKCS#11 token to be used") );
 	logCmdOption( "-p, --public",
 			_("Display only public objects") );
 	logCmdOption( "-x, --extended",
@@ -80,8 +91,9 @@ int
 parseCmd( int    a_iArgc,
           char **a_pszArgv ) {
 
-	char          *pszShortOpts = "px";
+	char          *pszShortOpts = "k:px";
 	struct option  stLongOpts[] = {
+					{ "token", required_argument, NULL, 'k' },
 					{ "public", no_argument, NULL, 'p' },
 					{ "extended", no_argument, NULL, 'x' },
 				};
@@ -114,7 +126,7 @@ main( int    a_iArgc,
 		goto out;
 
 	// Open the PKCS#11 TPM Token
-	rv = openToken( );
+	rv = openToken( g_pszToken );
 	if ( rv != CKR_OK )
 		goto out;
 
@@ -148,8 +160,13 @@ main( int    a_iArgc,
 	if ( rv != CKR_OK )
 		goto done;
 
-	while ( ulCount > 0 )
-		displayObject( hSession, hObject[ --ulCount ], g_bExtended );
+	if ( ulCount > 0 ) {
+		while ( ulCount > 0 )
+			displayObject( hSession, hObject[ --ulCount ], g_bExtended );
+	}
+	else {
+		logMsg( NO_TOKEN_OBJECTS );
+	}
 
 	free( hObject );
 

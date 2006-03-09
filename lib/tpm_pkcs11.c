@@ -131,7 +131,7 @@ pkcsTokenInfo(CK_TOKEN_INFO *a_ptTokenInfo ) {
  *   for the TPM token and "opening" it if it is found.
  */
 CK_RV
-openToken( ) {
+openToken( char *a_pszTokenLabel ) {
 
 	int  i;
 
@@ -142,11 +142,21 @@ openToken( ) {
 	CK_TOKEN_INFO  tTokenInfo;
 
 	char  szTokenLabel[ sizeof( tTokenInfo.label ) ];
+	char *pszTokenLabel;
 
 	// Set the name of the TPM token
-	strcpy( szTokenLabel, TPM_TOKEN_LABEL );
-	memset( szTokenLabel + strlen( szTokenLabel ), ' ',
-		sizeof( szTokenLabel ) - strlen( szTokenLabel ) );
+	memset( szTokenLabel, ' ', sizeof( szTokenLabel ) );
+	if ( a_pszTokenLabel ) {
+		if ( strlen( a_pszTokenLabel ) > sizeof( szTokenLabel ) ) {
+			logError( _("The token label cannot be greater than %ld characters\n"), sizeof( szTokenLabel ) );
+			rv = CKR_GENERAL_ERROR;
+			goto out;
+		}
+		pszTokenLabel = a_pszTokenLabel;
+	}
+	else
+		pszTokenLabel = TPM_TOKEN_LABEL;
+	strncpy( szTokenLabel, pszTokenLabel, strlen( pszTokenLabel ) );
 
 	// Initialize the PKCS#11 library
 	rv = C_Initialize( NULL );
