@@ -246,7 +246,10 @@ int main(int argc, char **argv)
 	BIO_puts(bdata, "\n");
 	bdata = BIO_push(b64, bdata);
 	BIO_write(bdata, sealKey, sealKeyLen);
-	BIO_flush(bdata);
+	if (BIO_flush(bdata) != 1) {
+		logError(_("Unable to flush output\n"));
+		goto out_close;
+	}
 	bdata = BIO_pop(b64);
 
 	/* Sealed EVP Symmetric Key */
@@ -258,7 +261,10 @@ int main(int argc, char **argv)
 	BIO_puts(bdata, "\n");
 	bdata = BIO_push(b64, bdata);
 	BIO_write(bdata, encKey, encLen);
-	BIO_flush(bdata);
+	if (BIO_flush(bdata) != 1) {
+		logError(_("Unable to flush output\n"));
+		goto out_close;
+	}
 	bdata = BIO_pop(b64);
 
 	/* Encrypted Data */
@@ -277,7 +283,10 @@ int main(int argc, char **argv)
 
 	EVP_EncryptFinal(&ctx, encData, &encDataLen);
 	BIO_write(bdata, encData, encDataLen);
-	BIO_flush(bdata);
+	if (BIO_flush(bdata) != 1) {
+		logError(_("Unable to flush output\n"));
+		goto out_close;
+	}
 	bdata = BIO_pop(b64);
 
 	BIO_puts( bdata, TPMSEAL_FTR_STRING);

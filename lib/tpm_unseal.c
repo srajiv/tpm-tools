@@ -166,7 +166,12 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	start += ((((tssLen * 4)+2)/3)+63)/64; //add base64 nl
 
 	/* looking for EVP Key Header */
-	BIO_seek(bdata, start);
+	if (BIO_seek(bdata, start) < 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
+		tpm_errno = EBADSEEK;
+		goto out;
+	}
+
 	BIO_gets(bdata, data, sizeof(data));
 	if (strncmp( data, TPMSEAL_EVP_STRING, 
 			strlen(TPMSEAL_EVP_STRING)) != 0 ) {
@@ -224,7 +229,12 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	start += ((((evpLen * 4)+2)/3)+63)/64; //add base64 nl
 
 	/* looking for ENC Data Header */
-	BIO_seek(bdata, start);
+	if (BIO_seek(bdata, start) < 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
+		tpm_errno = EBADSEEK;
+		goto out;
+	}
+
 	BIO_gets(bdata, data, sizeof(data));
 	if (strncmp( data, TPMSEAL_ENC_STRING, 
 			strlen(TPMSEAL_ENC_STRING)) != 0 ) {
@@ -353,7 +363,12 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	start += ((((datLen * 4)+2)/3)+63)/64; //add base64 nl
 
 	/* looking for Footer */
-	BIO_seek(bdata, start);
+	if (BIO_seek(bdata, start) < 0 ) {
+		rc = TPMSEAL_FILE_ERROR;
+		tpm_errno = EBADSEEK;
+		goto out;
+	}
+
 	BIO_gets(bdata, data, sizeof(data));
 	if (strncmp( data, TPMSEAL_FTR_STRING, 
 			strlen(TPMSEAL_FTR_STRING)) != 0 ) {
@@ -414,6 +429,8 @@ char * tpmUnsealStrerror(int rc) {
 					return _("Wrong DATA tag");
 				case EWRONGKEYTYPE:
 					return _("Not a Symmetric EVP Key");
+				case EBADSEEK:
+					return _("Unable to move to desired file position");
 			}
 		default:
 			snprintf(tpm_error_buf, sizeof(tpm_error_buf), 

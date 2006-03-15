@@ -32,6 +32,7 @@ enum tpm_errors {
 	EWRONGEVPTAG,
 	EWRONGDATTAG,
 	EWRONGKEYTYPE,
+	EBADSEEK,
 }; 
 
 extern int tpm_errno;
