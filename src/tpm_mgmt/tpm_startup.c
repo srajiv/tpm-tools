@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <netinet/in.h>
 
 int main() {
 
@@ -41,7 +42,7 @@ int main() {
 	fd = open( "/dev/tpm0", O_RDWR );
 	if ( fd < 0 ) {
 		printf( "Unable to open the device.\n" );
-		goto out;	
+		goto out_noclose;
 	}
 
 	err = write( fd, startup, sizeof(startup) );
@@ -57,14 +58,7 @@ int main() {
 		goto out;
 	}
 
-	/* ENDIANESS ISSUES HERE */
-	//memcpy( &err, startup+6, 4 ); //for PPC64
-	
-	memcpy( &err+3, startup+6, 1);
-	memcpy( &err+2, startup+7, 1);
-	memcpy( &err+1, startup+8, 1);
-	memcpy( &err, startup+9, 1);
-
+	err = ntohl( *((uint32_t *)(startup+6)) );
 	if ( err == 38 ) {
 		printf( "TPM already started.\n" );
 		goto out;
@@ -80,6 +74,8 @@ int main() {
 
 out:
 	close(fd);
+
+out_noclose:
         return rc;
 }
 

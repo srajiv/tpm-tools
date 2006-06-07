@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -105,8 +105,9 @@ int main(int argc, char **argv)
 	{"outfile", required_argument, NULL, 'o'},
 	{"pcr", required_argument, NULL, 'p'}
 	};
-	char line[66];		/* 64 data \n \0 */
-	unsigned char encData[64];
+	unsigned char line[EVP_CIPHER_block_size(EVP_aes_256_cbc()) * 16];
+	int lineLen;
+	unsigned char encData[sizeof(line) + EVP_CIPHER_block_size(EVP_aes_256_cbc())];
 	int encDataLen;
 	UINT32 encLen;
 	BYTE *encKey;
@@ -122,6 +123,13 @@ int main(int argc, char **argv)
 
 	initIntlSys();
 
+	if (genericOptHandler(argc, argv, "i:o:p:", opts,
+			      sizeof(opts) / sizeof(struct option), parse,
+			      help) != 0) {
+		logError(_("Invalid option\n"));
+		goto out;
+	}
+
 	if (contextCreate(&hContext) != TSS_SUCCESS)
 		goto out;
 
@@ -131,40 +139,28 @@ int main(int argc, char **argv)
 	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
 		goto out_close;
 
-	if (genericOptHandler(argc, argv, "i:o:p:", opts,
-			      sizeof(opts) / sizeof(struct option), parse,
-			      help) != 0) {
-		logError(_("Invalid option\n"));
-		goto out_close;
-	}
-
+	/* Create a BIO for the input file */
 	if ((bin = BIO_new(BIO_s_file())) == NULL) {
 		logError(_("Unable to open input BIO\n"));
 		goto out_close;
 	}
 
+	/* Assign the input file to the BIO */
 	if (strlen(in_filename) == 0) 
 		BIO_set_fp(bin, stdin, BIO_NOCLOSE);
-	else if (BIO_read_filename(bin, in_filename) < 0) {
+	else if (!BIO_read_filename(bin, in_filename)) {
 		logError(_("Unable to open input file: %s\n"),
 			 in_filename);
 		goto out_close;
 	}
 
-	if (BIO_gets(bin, line, sizeof(line)) < 0 ) {
-		logError(_("Unable to retrieve header.\n"));
-		goto out_close;
-	}
-
-	if ( strcmp(line, TPMSEAL_HDR_STRING) == 0 ) {
-		logError(_("Invalid header: file already sealed\n"));
-		goto out_close;
-	}
-
+	/* Retrieve random data to be used as the symmetric key
+	   (this key will encrypt the input file contents) */
 	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
 			 &randKey) != TSS_SUCCESS)
 		goto out_close;
 
+	/* Load the SRK and set the SRK policy (no password) */
 	if (keyLoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, SRK_UUID, &hSrk)
 	    != TSS_SUCCESS)
 		goto out_close;
@@ -175,6 +171,8 @@ int main(int argc, char **argv)
 	if (policySetSecret(hSrkPolicy, 0, NULL) != TSS_SUCCESS)
 		goto out_close;
 
+	/* Build an RSA key object that will be created by the TPM
+	   (this will encrypt and protect the symmetric key) */
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_RSAKEY, keyFlags,
 	     &hKey) != TSS_SUCCESS)
@@ -187,12 +185,16 @@ int main(int argc, char **argv)
 	    != TSS_SUCCESS)
 		goto out_close;
 
+	/* Create the RSA key (under the SRK) */
 	if (keyCreateKey(hKey, hSrk, NULL_HPCRS) != TSS_SUCCESS)
 		goto out_close;
 
+	/* Load the newly created RSA key */
 	if (keyLoadKey(hKey, hSrk) != TSS_SUCCESS)
 		goto out_close;
 
+	/* Build an encrypted data object that will hold the encrypted
+	   version of the symmetric key */
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_ENCDATA, TSS_ENCDATA_SEAL,
 	     &hEncdata) != TSS_SUCCESS)
@@ -205,6 +207,7 @@ int main(int argc, char **argv)
 	    != TSS_SUCCESS)
 		goto out_close;
 
+	/* Encrypt and seal the symmetric key */
 	if (dataSeal
 	    (hEncdata, hKey, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
 	     randKey, hPcrs) != TSS_SUCCESS)
@@ -220,16 +223,19 @@ int main(int argc, char **argv)
 	     &sealKeyLen, &sealKey) != TSS_SUCCESS)
 		goto out_close;
 
+	/* Create a BIO to perform base64 encoding */
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
 		logError(_("Unable to open base64 BIO\n"));
 		goto out_close;
 	}
 
+	/* Create a BIO for the output file */
 	if ((bdata = BIO_new(BIO_s_file())) == NULL) {
 		logError(_("Unable to open output BIO\n"));
 		goto out_close;
 	}
-	
+
+	/* Assign the output file to the BIO */
 	if (strlen(out_filename) == 0)
 		BIO_set_fp(bdata, stdout, BIO_NOCLOSE);
 	else if (BIO_write_filename(bdata, out_filename) <= 0) {
@@ -238,12 +244,11 @@ int main(int argc, char **argv)
 		goto out_close;
 	}
 
+	/* Output the sealed data header string */
 	BIO_puts(bdata, TPMSEAL_HDR_STRING);
-	BIO_puts(bdata, "\n");
 
 	/* Sealing key used on the TPM */
 	BIO_puts(bdata, TPMSEAL_TSS_STRING);
-	BIO_puts(bdata, "\n");
 	bdata = BIO_push(b64, bdata);
 	BIO_write(bdata, sealKey, sealKeyLen);
 	if (BIO_flush(bdata) != 1) {
@@ -254,11 +259,8 @@ int main(int argc, char **argv)
 
 	/* Sealed EVP Symmetric Key */
 	BIO_puts(bdata, TPMSEAL_EVP_STRING);
-	BIO_puts(bdata, "\n");
 	BIO_puts(bdata, TPMSEAL_KEYTYPE_SYM);
-	BIO_puts(bdata, ": ");
 	BIO_puts(bdata, TPMSEAL_CIPHER_AES256CBC);
-	BIO_puts(bdata, "\n");
 	bdata = BIO_push(b64, bdata);
 	BIO_write(bdata, encKey, encLen);
 	if (BIO_flush(bdata) != 1) {
@@ -269,17 +271,16 @@ int main(int argc, char **argv)
 
 	/* Encrypted Data */
 	BIO_puts(bdata, TPMSEAL_ENC_STRING); 
-	BIO_puts(bdata, "\n");
 	bdata = BIO_push(b64, bdata);
 
 	EVP_CIPHER_CTX ctx;
 	EVP_EncryptInit(&ctx, EVP_aes_256_cbc(), randKey, (unsigned char *)TPMSEAL_IV);
 
-	do {
+	while ((lineLen = BIO_read(bin, line, sizeof(line))) > 0) {
 		EVP_EncryptUpdate(&ctx, encData, &encDataLen,
-				  (unsigned char *)line, strlen(line));
+				  line, lineLen);
 		BIO_write(bdata, encData, encDataLen);
-	} while (BIO_read(bin, line, sizeof(line)) > 0);
+	}
 
 	EVP_EncryptFinal(&ctx, encData, &encDataLen);
 	BIO_write(bdata, encData, encDataLen);
@@ -290,7 +291,6 @@ int main(int argc, char **argv)
 	bdata = BIO_pop(b64);
 
 	BIO_puts( bdata, TPMSEAL_FTR_STRING);
-	BIO_write( bdata, "\n", 1 );
 	
 	iRc = 0;
 	logSuccess(argv[0]);

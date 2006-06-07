@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -346,6 +346,8 @@ writeData( CK_BYTE  *a_pbData,
            CK_BBOOL  a_bMoreData,
            CK_BBOOL  a_bEncrypt ) {
 
+	size_t tWriteCount;
+
 	if ( !g_pOutFile ) {
 		// Open the output file
 		errno = 0;
@@ -379,7 +381,7 @@ writeData( CK_BYTE  *a_pbData,
 
 	// Write the previous buffer if there is one
 	if ( g_pbOutData && ( g_ulOutDataLen > 0 ) )
-		fwrite( g_pbOutData, 1, g_ulOutDataLen, g_pOutFile );
+		tWriteCount = fwrite( g_pbOutData, 1, g_ulOutDataLen, g_pOutFile );
 
 	if ( a_bMoreData ) {
 		// Allocate a (new) buffer if necessary
@@ -402,7 +404,7 @@ writeData( CK_BYTE  *a_pbData,
 	else {
 		// No more data so write the last piece of data
 		if ( a_ulDataLen > 0 )
-			fwrite( a_pbData, 1, a_ulDataLen, g_pOutFile );
+			tWriteCount = fwrite( a_pbData, 1, a_ulDataLen, g_pOutFile );
 
 		fclose( g_pOutFile );
 	}

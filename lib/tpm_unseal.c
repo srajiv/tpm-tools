@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -57,34 +57,34 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 				"Tspi_Data_Unseal" 
 };
 
-#define MAX_LINE_LEN 66
-#define TSSKEY_DEFAULT_SIZE 559
-#define EVPKEY_DEFAULT_SIZE 312
+#define TSSKEY_DEFAULT_SIZE 768
+#define EVPKEY_DEFAULT_SIZE 512
 
 int tpm_errno;
 TSS_UUID SRK_UUID = TSS_UUID_SRK;
 
 int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 
-	int start, rc, rcLen=0, tssLen=0, evpLen=0, datLen=0;
+	int rc, rcLen=0, tssLen=0, evpLen=0;
 	BYTE* rcPtr;
-	char data[MAX_LINE_LEN];
+	char data[EVP_CIPHER_block_size(EVP_aes_256_cbc()) * 16];
 	BYTE *tssKeyData = NULL;
 	int tssKeyDataSize = 0;
 	BYTE *evpKeyData = NULL;
 	int evpKeyDataSize = 0;
 	struct stat stats;
-        TSS_HCONTEXT hContext;
-        TSS_HENCDATA hEncdata;
-        TSS_HKEY hSrk, hKey;
-        TSS_HPOLICY hPolicy;
-        UINT32 symKeyLen;
-        BYTE *symKey;
+	TSS_HCONTEXT hContext;
+	TSS_HENCDATA hEncdata;
+	TSS_HKEY hSrk, hKey;
+	TSS_HPOLICY hPolicy;
+	UINT32 symKeyLen;
+	BYTE *symKey;
 
-	unsigned char* res_data;
-	int res_size;
+	unsigned char* res_data = NULL;
+	int res_size = 0;
 
-	BIO *bdata = NULL, *b64 = NULL;
+	BIO *bdata = NULL, *b64 = NULL, *bmem = NULL;
+	int bioRc;
 
 	if ( tss_data == NULL || tss_size == NULL ) {
 		rc = TPMSEAL_STD_ERROR;
@@ -95,27 +95,29 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	*tss_data = NULL;
 	*tss_size = 0;
 
+	/* Test for file existence */
 	if ((rc = stat(fname, &stats))) {
 		tpm_errno = errno;
 		goto out;
 	}	
 
+	/* Create an input file BIO */
 	if((bdata = BIO_new_file(fname, "r")) == NULL ) {
 		tpm_errno = errno;
 		rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
-        /* test file header for TSS */
+	/* Test file header for TSS */
 	BIO_gets(bdata, data, sizeof(data));
-        if (strncmp(data, TPMSEAL_HDR_STRING, 
+	if (strncmp(data, TPMSEAL_HDR_STRING, 
 			strlen(TPMSEAL_HDR_STRING)) != 0) {
 		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = ENOTSSHDR;
 		goto out;
 	}		
 
-	/* looking for TSS Key Header */
+	/* Looking for TSS Key Header */
 	BIO_gets(bdata, data, sizeof(data));
 	if (strncmp(data, TPMSEAL_TSS_STRING, 
 			strlen(TPMSEAL_TSS_STRING)) != 0) {
@@ -124,125 +126,148 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto out;
 	}
 
-      	/* retrieve the TSS key used to Seal */
-	if ( (tssKeyData = malloc( TSSKEY_DEFAULT_SIZE )) == NULL) {
-		tpm_errno = ENOMEM;
+	/* Create a memory BIO to hold the base64 TSS key */
+	if ((bmem = BIO_new(BIO_s_mem())) == NULL) {
+		tpm_errno = EAGAIN;
 		rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
-	tssKeyDataSize = TSSKEY_DEFAULT_SIZE;
+	/* Read the base64 TSS key into the memory BIO */
+	while ((rcLen = BIO_gets(bdata, data, sizeof(data))) > 0) {
+		/* Look for EVP Key Header (end of key) */
+		if (strncmp(data, TPMSEAL_EVP_STRING,
+				strlen(TPMSEAL_EVP_STRING)) == 0)
+			break;
 
+		if (BIO_write(bmem, data, rcLen) <= 0) {
+			tpm_errno = EIO; 
+			rc = TPMSEAL_STD_ERROR;
+			goto out;
+		}
+	}
+	if (strncmp(data, TPMSEAL_EVP_STRING, 
+			strlen(TPMSEAL_EVP_STRING)) != 0 ) {
+		tpm_errno = EWRONGEVPTAG;
+		rc = TPMSEAL_FILE_ERROR;
+		goto out;
+	}
+
+	/* Create a base64 BIO to decode the TSS key */
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
 		tpm_errno = EAGAIN;
 		rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
-	start = BIO_tell(bdata);
-
-	bdata = BIO_push( b64, bdata );
-
-        while ((rcLen=BIO_read(bdata, data, sizeof(data))) > 0 ) {
-		if ( ( tssLen + rcLen ) > tssKeyDataSize ) {
-			rcPtr = realloc( tssKeyData, tssKeyDataSize + rcLen);
+	/* Decode the TSS key */
+	bmem = BIO_push( b64, bmem );
+	while ((rcLen = BIO_read(bmem, data, sizeof(data))) > 0) {
+		if ((tssLen + rcLen) > tssKeyDataSize) {
+			tssKeyDataSize += TSSKEY_DEFAULT_SIZE;
+			rcPtr = realloc( tssKeyData, tssKeyDataSize);
 			if ( rcPtr == NULL ) {
 				tpm_errno = ENOMEM;
 				rc = TPMSEAL_STD_ERROR;
 				goto out;
 			}
 			tssKeyData = rcPtr;
-			tssKeyDataSize += rcLen;
 		}
-		memcpy( tssKeyData + tssLen, data, rcLen );
+		memcpy(tssKeyData + tssLen, data, rcLen);
 		tssLen += rcLen;
-        }
-	bdata = BIO_pop(b64);
+	}
+	bmem = BIO_pop(b64);
 	BIO_free(b64);
 	b64 = NULL;
+	bioRc = BIO_reset(bmem);
 
-	start += ((tssLen * 4)+2)/3; //add base64 chars
-	start += 2 - (((tssLen * 4)+2)%3); //add base64 pad
-	start += ((((tssLen * 4)+2)/3)+63)/64; //add base64 nl
-
-	/* looking for EVP Key Header */
-	if (BIO_seek(bdata, start) < 0 ) {
-		rc = TPMSEAL_FILE_ERROR;
-		tpm_errno = EBADSEEK;
-		goto out;
-	}
-
+	/* Check for EVP Key Type Header */
 	BIO_gets(bdata, data, sizeof(data));
-	if (strncmp( data, TPMSEAL_EVP_STRING, 
-			strlen(TPMSEAL_EVP_STRING)) != 0 ) {
-		rc = TPMSEAL_FILE_ERROR;
-		tpm_errno = EWRONGEVPTAG;
-		goto out;
-	}
-
-	BIO_gets(bdata, data, sizeof(data));
-	if( strncmp(data, TPMSEAL_KEYTYPE_SYM, 
+	if (strncmp(data, TPMSEAL_KEYTYPE_SYM, 
 			strlen(TPMSEAL_KEYTYPE_SYM)) != 0 ) {
 		rc = TPMSEAL_FILE_ERROR;
 		tpm_errno = EWRONGKEYTYPE;
 		goto out;
 	}
 
-        /* retrieve the sealed EVP symmetric key used for encryption */
-	if ( (evpKeyData = malloc( EVPKEY_DEFAULT_SIZE )) == NULL) {
-		tpm_errno = ENOMEM;
-		rc = TPMSEAL_STD_ERROR;
+	/* Make sure it's a supported cipher
+	   (currently only AES 256 CBC) */
+	if (strncmp(data + strlen(TPMSEAL_KEYTYPE_SYM),
+			TPMSEAL_CIPHER_AES256CBC,
+			strlen(TPMSEAL_CIPHER_AES256CBC)) != 0) {
+		rc = TPMSEAL_FILE_ERROR;
+		tpm_errno = EWRONGKEYTYPE;
 		goto out;
 	}
 
-	evpKeyDataSize = EVPKEY_DEFAULT_SIZE;
+	/* Read the base64 Symmetric key into the memory BIO */
+	while ((rcLen = BIO_gets(bdata, data, sizeof(data))) > 0) {
+		/* Look for Encrypted Data Header (end of key) */
+		if (strncmp(data, TPMSEAL_ENC_STRING,
+				strlen(TPMSEAL_ENC_STRING)) == 0)
+			break;
 
+		if (BIO_write(bmem, data, rcLen) <= 0) {
+			tpm_errno = EIO; 
+			rc = TPMSEAL_STD_ERROR;
+			goto out;
+		}
+	}
+	if (strncmp(data, TPMSEAL_ENC_STRING, 
+			strlen(TPMSEAL_ENC_STRING)) != 0 ) {
+		tpm_errno = EWRONGDATTAG;
+		rc = TPMSEAL_FILE_ERROR;
+		goto out;
+	}
+
+	/* Create a base64 BIO to decode the Symmetric key */
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
 		tpm_errno = EAGAIN;
 		rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
 
-	start = BIO_tell( bdata );
-	
-	bdata = BIO_push( b64, bdata );
-        while ((rcLen=BIO_read(bdata, data, sizeof(data))) > 0 ) {
-		if ( ( evpLen + rcLen ) > evpKeyDataSize ) {
-			rcPtr = realloc( evpKeyData, evpKeyDataSize + rcLen);
+	/* Decode the Symmetric key */
+	bmem = BIO_push( b64, bmem );
+	while ((rcLen = BIO_read(bmem, data, sizeof(data))) > 0) {
+		if ((evpLen + rcLen) > evpKeyDataSize) {
+			evpKeyDataSize += EVPKEY_DEFAULT_SIZE;
+			rcPtr = realloc( evpKeyData, evpKeyDataSize);
 			if ( rcPtr == NULL ) {
 				tpm_errno = ENOMEM;
 				rc = TPMSEAL_STD_ERROR;
 				goto out;
 			}
 			evpKeyData = rcPtr;
-			evpKeyDataSize += rcLen;
 		}
-		memcpy( evpKeyData + evpLen, data, rcLen );
+		memcpy(evpKeyData + evpLen, data, rcLen);
 		evpLen += rcLen;
-        }
-	bdata = BIO_pop(b64);
+	}
+	bmem = BIO_pop(b64);
 	BIO_free(b64);
 	b64 = NULL;
+	bioRc = BIO_reset(bmem);
 
-	start += ((evpLen * 4)+2)/3; //add base64 chars
-	start += 2 - (((evpLen * 4)+2)%3); //add base64 pad
-	start += ((((evpLen * 4)+2)/3)+63)/64; //add base64 nl
+	/* Read the base64 encrypted data into the memory BIO */
+	while ((rcLen = BIO_gets(bdata, data, sizeof(data))) > 0) {
+		/* Look for TSS Footer (end of data) */
+		if (strncmp(data, TPMSEAL_FTR_STRING,
+				strlen(TPMSEAL_FTR_STRING)) == 0)
+			break;
 
-	/* looking for ENC Data Header */
-	if (BIO_seek(bdata, start) < 0 ) {
+		if (BIO_write(bmem, data, rcLen) <= 0) {
+			tpm_errno = EIO; 
+			rc = TPMSEAL_STD_ERROR;
+			goto out;
+		}
+	}
+	if (strncmp(data, TPMSEAL_FTR_STRING, 
+			strlen(TPMSEAL_FTR_STRING)) != 0 ) {
+		tpm_errno = ENOTSSFTR;
 		rc = TPMSEAL_FILE_ERROR;
-		tpm_errno = EBADSEEK;
 		goto out;
 	}
 
-	BIO_gets(bdata, data, sizeof(data));
-	if (strncmp( data, TPMSEAL_ENC_STRING, 
-			strlen(TPMSEAL_ENC_STRING)) != 0 ) {
-		rc = TPMSEAL_FILE_ERROR;
-		tpm_errno = EWRONGDATTAG;
-		goto out;
-	}
-	
 	/* Unseal */
 	if ((rc=Tspi_Context_Create(&hContext)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXCREAT;
@@ -270,20 +295,20 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto tss_out;
 	}
 
-        if ((rc=Tspi_GetPolicyObject(hEncdata, TSS_POLICY_USAGE, 
+	if ((rc=Tspi_GetPolicyObject(hEncdata, TSS_POLICY_USAGE, 
 					&hPolicy)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIGETPO;
 		goto tss_out;
 	}
 
-        if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
+	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
 					strlen(TPMSEAL_SECRET), 
 					(BYTE *)TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out;
 	}
 
-        if ((rc=Tspi_Context_LoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, 
+	if ((rc=Tspi_Context_LoadKeyByUUID(hContext, TSS_PS_TYPE_SYSTEM, 
 					SRK_UUID, &hSrk)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBU;
 		goto tss_out;
@@ -302,7 +327,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	}
 
 	/* Failure point if trying to unseal data on a differnt TPM */
-        if ((rc=Tspi_Context_LoadKeyByBlob(hContext, hSrk, tssLen, 
+	if ((rc=Tspi_Context_LoadKeyByBlob(hContext, hSrk, tssLen, 
 					tssKeyData, &hKey)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXLKBB;
 		goto tss_out;
@@ -321,61 +346,45 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto tss_out;
 	}
 
-        if ((rc=Tspi_Data_Unseal(hEncdata, hKey, &symKeyLen,
-               	             &symKey)) != TSS_SUCCESS) {
+	if ((rc=Tspi_Data_Unseal(hEncdata, hKey, &symKeyLen,
+					&symKey)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIDATU;
 		goto tss_out;
 	}
 
-	start = BIO_tell(bdata);
-	res_data = malloc(stats.st_size-start);
+	/* Malloc a block of storage to hold the decrypted data
+	   Using the size of the mem BIO is more than enough
+	   (plus an extra cipher block size) */
+	res_data = malloc(BIO_pending(bmem) + EVP_CIPHER_block_size(EVP_aes_256_cbc()));
 	if ( res_data == NULL ) {
 		rc = TPMSEAL_STD_ERROR;
 		tpm_errno = ENOMEM;
 		goto tss_out;
 	}
-	res_size = 0;
 
+	/* Decode and decrypt the encrypted data */
+	EVP_CIPHER_CTX ctx;
+	EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, (unsigned char *)TPMSEAL_IV);
+
+	/* Create a base64 BIO to decode the encrypted data */
 	if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
 		tpm_errno = EAGAIN;
 		rc = TPMSEAL_STD_ERROR;
-		goto out;
-	}
-
-        /* Decrypt */
-        EVP_CIPHER_CTX ctx;
-        EVP_DecryptInit(&ctx, EVP_aes_256_cbc(), symKey, (unsigned char *)TPMSEAL_IV);
-
-       	/* retrieve the encrypted data needed */
-	bdata = BIO_push(b64, bdata);
-        while ((rcLen = BIO_read(bdata, data, sizeof(data))) > 0 ) {
-		datLen += rcLen;
-		EVP_DecryptUpdate(&ctx, res_data+res_size, 
-					&rcLen, (unsigned char *)data, rcLen);
-		res_size += rcLen;
-        }
-	bdata = BIO_pop(b64);
-        EVP_DecryptFinal(&ctx, res_data+res_size, &rcLen);
-	res_size += rcLen;
-
-	start += ((datLen * 4)+2)/3; //add base64 chars
-	start += 2 - (((datLen * 4)+2)%3); //add base64 pad
-	start += ((((datLen * 4)+2)/3)+63)/64; //add base64 nl
-
-	/* looking for Footer */
-	if (BIO_seek(bdata, start) < 0 ) {
-		rc = TPMSEAL_FILE_ERROR;
-		tpm_errno = EBADSEEK;
-		goto out;
-	}
-
-	BIO_gets(bdata, data, sizeof(data));
-	if (strncmp( data, TPMSEAL_FTR_STRING, 
-			strlen(TPMSEAL_FTR_STRING)) != 0 ) {
-		rc = TPMSEAL_FILE_ERROR;
-		tpm_errno = ENOTSSFTR;
 		goto tss_out;
 	}
+
+	bmem = BIO_push( b64, bmem );
+	while ((rcLen = BIO_read(bmem, data, sizeof(data))) > 0) {
+		EVP_DecryptUpdate(&ctx, res_data+res_size,
+					&rcLen, (unsigned char *)data, rcLen);
+		res_size += rcLen;
+	}
+	EVP_DecryptFinal(&ctx, res_data+res_size, &rcLen);
+	res_size += rcLen;
+	bmem = BIO_pop(b64);
+	BIO_free(b64);
+	b64 = NULL;
+	bioRc = BIO_reset(bmem);
 
 tss_out:
 	Tspi_Context_Close(hContext);
@@ -385,13 +394,17 @@ out:
 		BIO_free(bdata);
 	if ( b64 )
 		BIO_free(b64);
+	if ( bmem ) {
+		bioRc = BIO_set_close(bmem, BIO_CLOSE);
+		BIO_free(bmem);
+	}
 
 	if ( evpKeyData )
 		free(evpKeyData);
 	if ( tssKeyData )
 		free(tssKeyData);
 
-	if ( rc  == 0 ) {
+	if ( rc == 0 ) {
 		*tss_data = res_data;
 		*tss_size = res_size;
 	}

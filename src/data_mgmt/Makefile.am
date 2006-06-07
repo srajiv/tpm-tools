@@ -3,7 +3,7 @@
 #
 #       The Initial Developer of the Original Code is International
 #       Business Machines Corporation. Portions created by IBM
-#       Corporation are Copyright (C) 2005 International Business
+#       Corporation are Copyright (C) 2005, 2006 International Business
 #       Machines Corporation. All Rights Reserved.
 #
 #       This program is free software; you can redistribute it and/or modify
@@ -31,9 +31,7 @@ bin_PROGRAMS	=	tpmtoken_init		\
 # Common build flags
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 
-AM_LDFLAGS	=	-lopencryptoki -ltspi
-
-LDADD		=	$(top_builddir)/lib/libtpm_pkcs11.la
+LDADD		=	$(top_builddir)/lib/libtpm_pkcs11.la -lopencryptoki -ltspi
 
 
 #
@@ -51,7 +49,7 @@ tpmtoken_objects_SOURCES	=	data_object.c
 #
 # TPM Token object import command
 tpmtoken_import_SOURCES		=	data_import.c
-tpmtoken_import_LDFLAGS		=	-lcrypto
+tpmtoken_import_LDADD		=	$(LDADD) -lcrypto
 
 #
 # TPM Token data protection command

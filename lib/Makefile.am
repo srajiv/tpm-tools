@@ -2,7 +2,7 @@
 #
 #       The Initial Developer of the Original Code is International
 #       Business Machines Corporation. Portions created by IBM
-#       Corporation are Copyright (C) 2005 International Business
+#       Corporation are Copyright (C) 2005, 2006 International Business
 #       Machines Corporation. All Rights Reserved.
 #
 #       This program is free software; you can redistribute it and/or modify
@@ -75,4 +75,5 @@ endif
 #
 # Unseal library - for addition to existing apps, counter part of seal cmd
 libtpm_unseal_la_SOURCES =	tpm_unseal.c
-libtpm_unseal_la_LDFLAGS =	-ltspi -shared -version-info 0:0:0
+libtpm_unseal_la_LDFLAGS =	-shared -version-info 0:1:0
+libtpm_unseal_la_LIBADD  =	-ltspi

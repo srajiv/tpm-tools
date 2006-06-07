@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -54,7 +54,7 @@
 #define TRUE (!FALSE)
 #endif
 
-#define CMD_VERSION             "1.0.0"
+#define CMD_VERSION             PACKAGE_VERSION
 
 #define LOG_NONE                _("none")
 #define LOG_LEVEL_NONE          0

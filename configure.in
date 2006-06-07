@@ -3,7 +3,7 @@
 #
 #       The Initial Developer of the Original Code is International
 #       Business Machines Corporation. Portions created by IBM
-#       Corporation are Copyright (C) 2005 International Business
+#       Corporation are Copyright (C) 2005, 2006 International Business
 #       Machines Corporation. All Rights Reserved.
 #
 #       This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,7 @@ AC_INIT(tpm-tools, 1.2.3, trousers-tech@lists.sf.net)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CANONICAL_TARGET
 
-AM_INIT_AUTOMAKE(1.6.1)
+AM_INIT_AUTOMAKE([foreign 1.6])
 
 AC_PROG_CC
 AC_PROG_CXX
@@ -41,29 +41,26 @@ AC_CHECK_PROGS(RM, rm)
 
 AM_GNU_GETTEXT([external])
 
-OPENSSL="0"
-AC_CHECK_LIB(crypto, PEM_read_X509, [OPENSSL_LIB="1"], [OPENSSL_LIB="0"])
-AC_CHECK_HEADER(openssl/evp.h, [OPENSSL_INC="1"], [OPENSSL_INC="0"])
-if test "$OPENSSL_LIB" = "1" -a "$OPENSSL_INC" = "1"; then
-  OPENSSL="1"
-fi
+AC_CHECK_LIB(tspi, Tspi_Context_Create, [TSS_LIB="1"], [AC_MSG_ERROR([tss lib not found: libtspi.so])])
+AC_CHECK_HEADER(trousers/tss.h, [TSS_INC="1"], [AC_MSG_ERROR([tss header not found: trousers/tss.h])])
+
+AC_CHECK_LIB(crypto, PEM_read_X509, [OPENSSL_LIB="1"], [AC_MSG_ERROR([openssl lib not found: libcrypto.so])])
+AC_CHECK_HEADER(openssl/evp.h, [OPENSSL_INC="1"], [AC_MSG_ERROR([openssl header not found: openssl/evp.h])])
 
 OPENCRYPTOKI="0"
 AC_ARG_ENABLE(pkcs11_support, 
-		AC_HELP_STRING([--disable-pkcs11-support], 
-				[don't build data_mgmt commands [default is on]]),
-		[disable_pkcs11_support="yes"
-		AC_MSG_RESULT([*** Not building data_mgmt at user request ***])],)
+  AC_HELP_STRING([--disable-pkcs11-support], [don't build data_mgmt commands [[default=no]]]),
+  [disable_pkcs11_support="yes"
+   AC_MSG_RESULT([*** Not building data_mgmt at user request ***])],)
 
 if test "x$disable_pkcs11_support" != "xyes"; then
-	AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
-	AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
-	if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
-	  OPENCRYPTOKI="1"
-	fi
+  AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
+  AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
+  if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
+    OPENCRYPTOKI="1"
+  fi
 fi
-
-AM_CONDITIONAL([P11_SUPPORT], [test "$OPENSSL" = "1" -a "$OPENCRYPTOKI" = "1"])
+AM_CONDITIONAL([P11_SUPPORT], [test "$OPENCRYPTOKI" = "1"])
 
 AC_HEADER_STDC
 
@@ -81,7 +78,7 @@ AC_TYPE_UID_T
 
 DEBUG=""
 AC_MSG_CHECKING([for debug-enabled build])
-AC_ARG_ENABLE(debug, [--enable-debug            Create a debug build that outputs debug messages],
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [create a debug build that outputs debug messages]),
  [if test "$enableval" = "yes"; then
     DEBUG="yes"
     AC_MSG_RESULT([yes])
@@ -110,3 +107,6 @@ AC_CONFIG_FILES(./Makefile		\
 		man/man3/Makefile       \
 		man/man8/Makefile)
 AC_OUTPUT
+
+echo "CFLAGS=$CFLAGS"
+echo "LDFLAGS=$LDFLAGS"

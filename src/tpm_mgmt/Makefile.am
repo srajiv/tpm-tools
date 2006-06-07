@@ -3,7 +3,7 @@
 #
 #       The Initial Developer of the Original Code is International
 #       Business Machines Corporation. Portions created by IBM
-#       Corporation are Copyright (C) 2005 International Business
+#       Corporation are Copyright (C) 2005, 2006 International Business
 #       Machines Corporation. All Rights Reserved.
 #
 #       This program is free software; you can redistribute it and/or modify
@@ -39,9 +39,7 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 
-AM_LDFLAGS	=	-ltspi
-
-LDADD		=	$(top_builddir)/lib/libtpm_tspi.la
+LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi
 
 tpm_startup_SOURCES = 		tpm_startup.c
 

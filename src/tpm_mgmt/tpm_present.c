@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -160,6 +160,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	char *pwd = NULL;
 	int pswd_len;
 	char rsp[5];
+	int scanCount;
 
 	//get status w/o owner auth (FAILS 1.1, should PASS 1.2)
 	if (tpmGetStatus(hTpm, flags[cmdEnable].property, &bCmd) !=
@@ -207,7 +208,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	}
 	logMsg
 	    (_("This command cannot be undone.  Are you sure you want to continue?[y/N]\n"));
-	scanf("%5s", rsp);
+	scanCount = scanf("%5s", rsp);
 
 	 /* TRANSLATORS: this should be the affirmative letter that was  prompted for in the message corresponding to: "Are you sure you want to continue?[y/N]" */ 
 	if (strcmp(rsp, _("y")) == 0) { 

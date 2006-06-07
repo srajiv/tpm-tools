@@ -1,7 +1,7 @@
 /*
  * The Initial Developer of the Original Code is International
  * Business Machines Corporation. Portions created by IBM
- * Corporation are Copyright (C) 2005 International Business
+ * Corporation are Copyright (C) 2005, 2006 International Business
  * Machines Corporation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,14 +22,14 @@
 #ifndef __TPM_SEAL_H
 #define __TPM_SEAL_H
 
-#define TPMSEAL_HDR_STRING "-----BEGIN TSS-----"
-#define TPMSEAL_FTR_STRING "-----END TSS-----"
-#define TPMSEAL_TSS_STRING "-----TSS KEY-----"
-#define TPMSEAL_EVP_STRING "-----ENC KEY-----"
-#define TPMSEAL_ENC_STRING "-----ENC DAT-----"
+#define TPMSEAL_HDR_STRING "-----BEGIN TSS-----\n"
+#define TPMSEAL_FTR_STRING "-----END TSS-----\n"
+#define TPMSEAL_TSS_STRING "-----TSS KEY-----\n"
+#define TPMSEAL_EVP_STRING "-----ENC KEY-----\n"
+#define TPMSEAL_ENC_STRING "-----ENC DAT-----\n"
 
-#define TPMSEAL_KEYTYPE_SYM "Symmetric Key"
-#define TPMSEAL_CIPHER_AES256CBC "AES-256-CBC"
+#define TPMSEAL_KEYTYPE_SYM "Symmetric Key: "
+#define TPMSEAL_CIPHER_AES256CBC "AES-256-CBC\n"
 
 #define TPMSEAL_SECRET "password"
 #define TPMSEAL_IV "IBM SEALIBM SEAL"
