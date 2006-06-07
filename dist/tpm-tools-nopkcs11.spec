@@ -1,5 +1,5 @@
 Name:           tpm-tools
-Version:        1.2.3
+Version:        1.2.4
 Release:        1
 Summary:        Management tools for the TPM hardware
 
