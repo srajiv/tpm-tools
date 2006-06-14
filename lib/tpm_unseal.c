@@ -132,6 +132,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		rc = TPMSEAL_STD_ERROR;
 		goto out;
 	}
+	BIO_set_mem_eof_return(bmem, 0);
 
 	/* Read the base64 TSS key into the memory BIO */
 	while ((rcLen = BIO_gets(bdata, data, sizeof(data))) > 0) {
