@@ -13,19 +13,19 @@ BuildRequires:  autoconf automake libtool trousers-devel openssl-devel
 Requires:       trousers
 
 %description
-tpm-tools is a group of tools to manage and utilize the Trusted Computing Group's
-TPM hardware. TPM hardware can create, store and use RSA keys
-securely (without ever being exposed in memory), verify a platform's software
-state using cryptographic hashes and more.
+tpm-tools is a group of tools to manage and utilize the Trusted Computing
+Group's TPM hardware. TPM hardware can create, store and use RSA keys
+securely (without ever being exposed in memory), verify a platform's
+software state using cryptographic hashes and more.
 
 %package devel
 Summary:	Files to use the library routines supplied with tpm-tools
 Group:		Development/Libraries
-Requires:	tpm-tools
+Requires:	tpm-tools = %{version}-%{release} 
 
 %description devel
-tpm-tools-devel is a package that contains the libraries and headers necessary
-for developing tpm-tools applications.
+tpm-tools-devel is a package that contains the libraries and headers
+necessary for developing tpm-tools applications.
 
 
 %prep
@@ -51,22 +51,21 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 %doc LICENSE README
-%attr(755, root, root) %{_bindir}/tpm_sealdata
+%attr(755, root, root) %{_bindir}/tpm_*
 %attr(755, root, root) %{_sbindir}/tpm_*
-%{_libdir}/libtpm_unseal.so.0.0.1
+%attr(755, root, root) %{_libdir}/libtpm_unseal.so.0.0.1
 %{_libdir}/libtpm_unseal.so.0
 %{_mandir}/man1/tpm_*
 %{_mandir}/man8/tpm_*
 
 %files devel
+%defattr(-,root,root,-)
 %{_libdir}/libtpm_unseal.so
 %{_includedir}/tpm_tools/*.h
 %{_mandir}/man3/tpmUnseal*
 
 
-%post
-/sbin/ldconfig
+%post -p /sbin/ldconfig
 
 
-%postun
-/sbin/ldconfig
+%postun -p /sbin/ldconfig
