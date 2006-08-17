@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	//Initialize EK attributes here
-	fEkAttrs = TSS_KEY_SIZE_2048;
+	fEkAttrs = TSS_KEY_SIZE_2048 | TSS_KEY_TYPE_LEGACY;
 	if (contextCreateObject
 		(hContext, TSS_OBJECT_TYPE_RSAKEY, fEkAttrs,
 		&hEk) != TSS_SUCCESS)
