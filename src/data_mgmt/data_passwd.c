@@ -132,13 +132,13 @@ main( int    a_iArgc,
 	// Make sure the token is initialized
 	if ( !isTokenInitialized( ) ) {
 		logMsg( TOKEN_NOT_INIT_ERROR );
-		goto done;
+		goto out;
 	}
 
 	// Open a session
 	rv = openTokenSession( CKF_RW_SESSION, &hSession );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Get the current password
 	if ( g_bSystem ) {
@@ -151,12 +151,12 @@ main( int    a_iArgc,
 	}
 	pszPin = getPlainPasswd( pszPrompt, FALSE );
 	if ( !pszPin )
-		goto done;
+		goto out;
 
 	// Login to the token
 	rv = loginToken( hSession, tUser, pszPin );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Get the new password
 	if ( g_bSystem ) {
@@ -172,7 +172,7 @@ main( int    a_iArgc,
 		// Prompt for a new SO password
 		pszNewPin = getPlainPasswd( pszPrompt, TRUE );
 		if ( !pszNewPin )
-			goto done;
+			goto out;
 
 		// Set the new password
 		rv = setPin( hSession, pszPin, pszNewPin );
@@ -182,14 +182,14 @@ main( int    a_iArgc,
 		if ( ( rv == CKR_PIN_INVALID ) || ( rv == CKR_PIN_LEN_RANGE ) )
 			logError( TOKEN_INVALID_PIN );
 		else
-			goto done;
+			goto out;
 
 		shredPasswd( pszNewPin );
 	}
 
 	rc = 0;
 
-done:
+out:
 	shredPasswd( pszPin );
 	shredPasswd( pszNewPin );
 
@@ -198,7 +198,6 @@ done:
 
 	closeToken( );
 
-out:
 	if ( rc == 0 )
 		logInfo( TOKEN_CMD_SUCCESS, a_pszArgv[ 0 ] );
 	else

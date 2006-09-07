@@ -242,8 +242,8 @@ TSS_RESULT displayKey(TSS_HKEY a_hKey)
 	}
 
 	result =
-	    getAttribData(a_hKey, TSS_TSPATTRIB_KEY_BLOB,
-			  TSS_TSPATTRIB_KEYBLOB_PUBLIC_KEY, &uiAttrSize,
+	    getAttribData(a_hKey, TSS_TSPATTRIB_RSAKEY_INFO,
+			  TSS_TSPATTRIB_KEYINFO_RSA_MODULUS, &uiAttrSize,
 			  &pAttr);
 	if (result != TSS_SUCCESS)
 		return result;

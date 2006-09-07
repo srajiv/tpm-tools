@@ -133,13 +133,13 @@ main( int    a_iArgc,
 	// Make sure the token is initialized
 	if ( !isTokenInitialized( ) ) {
 		logMsg( TOKEN_NOT_INIT_ERROR );
-		goto done;
+		goto out;
 	}
 
 	// Open a session
 	rv = openTokenSession( CKF_RW_SESSION, &hSession );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Check the scope of the request, which will determine the login
 	// requirements:
@@ -148,17 +148,17 @@ main( int    a_iArgc,
 	if ( !g_bPublic ) {
 		pszPin = getPlainPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
 		if ( !pszPin )
-			goto done;
+			goto out;
 
 		// Login to the token
 		rv = loginToken( hSession, CKU_USER, pszPin );
 		if ( rv != CKR_OK )
-			goto done;
+			goto out;
 	}
 
 	rv = findObjects( hSession, NULL, 0, &hObject, &ulCount );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	if ( ulCount > 0 ) {
 		while ( ulCount > 0 )
@@ -172,7 +172,7 @@ main( int    a_iArgc,
 
 	rc = 0;
 
-done:
+out:
 	shredPasswd( pszPin );
 
 	if ( hSession )
@@ -180,7 +180,6 @@ done:
 
 	closeToken( );
 
-out:
 	if ( rc == 0 )
 		logInfo( TOKEN_CMD_SUCCESS, a_pszArgv[ 0 ] );
 	else

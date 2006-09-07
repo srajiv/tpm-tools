@@ -22,15 +22,22 @@
 #include <tpm_pkcs11.h>
 
 #include <stdlib.h>
+#include <dlfcn.h>
 #include <opencryptoki/pkcs11.h>
 
 
 /*
  * Global variables
  */
+char *                g_pszSoLib = TPM_OPENCRYPTOKI_SO;
+void *                g_pSoLib   = NULL; // Handle of libopencryptoki library
+CK_FUNCTION_LIST_PTR  g_pFcnList = NULL; // Function List
+
+BOOL           g_bInit      = FALSE;	// Indicates if C_Initialize has been called
 BOOL           g_bTokenOpen = FALSE;	// Indicates if the token has been opened
 CK_SLOT_ID     g_tSlotId;		// Slot ID of the TPM token
 CK_TOKEN_INFO  g_tToken;		// TPM token information
+
 
 void
 pkcsDebug( const char *a_pszName,
@@ -133,6 +140,8 @@ pkcsTokenInfo(CK_TOKEN_INFO *a_ptTokenInfo ) {
 CK_RV
 openToken( char *a_pszTokenLabel ) {
 
+	CK_C_GetFunctionList  fGetFunctionList;
+
 	int  i;
 
 	CK_RV          rv;
@@ -143,6 +152,24 @@ openToken( char *a_pszTokenLabel ) {
 
 	char  szTokenLabel[ sizeof( tTokenInfo.label ) ];
 	char *pszTokenLabel;
+
+	// Load the PKCS#11 library
+	g_pSoLib = dlopen( g_pszSoLib, RTLD_NOW );
+	if ( !g_pSoLib ) {
+		logError( _("The PKCS#11 library cannot be loaded: %s\n"), dlerror( ) );
+		rv = CKR_GENERAL_ERROR;
+		goto out;
+	}
+	fGetFunctionList = (CK_C_GetFunctionList)dlsym( g_pSoLib, "C_GetFunctionList" );
+	if ( !fGetFunctionList ) {
+		logError( _("Unable to find the C_GetFunctionList function: %s\n"), dlerror( ) );
+		rv = CKR_GENERAL_ERROR;
+		goto out;
+	}
+	rv = fGetFunctionList( &g_pFcnList );
+	pkcsResult( "C_GetFunctionList", rv );
+	if ( rv != CKR_OK )
+		goto out;
 
 	// Set the name of the TPM token
 	memset( szTokenLabel, ' ', sizeof( szTokenLabel ) );
@@ -159,21 +186,22 @@ openToken( char *a_pszTokenLabel ) {
 	strncpy( szTokenLabel, pszTokenLabel, strlen( pszTokenLabel ) );
 
 	// Initialize the PKCS#11 library
-	rv = C_Initialize( NULL );
+	rv = g_pFcnList->C_Initialize( NULL );
 	pkcsResult( "C_Initialize", rv );
 	if ( rv != CKR_OK )
 		goto out;
+	g_bInit = TRUE;
 
 	// Determine the number of slots that are present
-	rv = C_GetSlotList( FALSE, NULL, &ulSlots );
+	rv = g_pFcnList->C_GetSlotList( FALSE, NULL, &ulSlots );
 	pkcsResult( "C_GetSlotList", rv );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	if ( ulSlots == 0 ) {
 		logError( _("No PKCS#11 slots present\n") );
 		rv = CKR_TOKEN_NOT_PRESENT;
-		goto done;
+		goto out;
 	}
 
 	// Allocate a buffer to hold the slot ids
@@ -182,32 +210,32 @@ openToken( char *a_pszTokenLabel ) {
 	if ( !ptSlots ) {
 		logError( _("Unable to obtain memory for PKCS#11 slot IDs\n") );
 		rv = CKR_HOST_MEMORY;
-		goto done;
+		goto out;
 	}
 
 	// Retrieve the list of slot ids that are present
-	rv = C_GetSlotList( FALSE, ptSlots, &ulSlots );
+	rv = g_pFcnList->C_GetSlotList( FALSE, ptSlots, &ulSlots );
 	pkcsResult( "C_GetSlotList", rv );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Iterate through the slots looking for the TPM token
 	for ( i = 0; i < ulSlots; i++ ) {
 		// Obtain information about the slot
 		logDebug( _("Retrieving slot information for SlotID %ld\n"), ptSlots[ i ] );
-		rv = C_GetSlotInfo( ptSlots[ i ], &tSlotInfo );
+		rv = g_pFcnList->C_GetSlotInfo( ptSlots[ i ], &tSlotInfo );
 		pkcsResult( "C_GetSlotInfo", rv );
 		if ( rv != CKR_OK )
-			goto done;
+			goto out;
 		pkcsSlotInfo( &tSlotInfo );
 
 		if ( tSlotInfo.flags & CKF_TOKEN_PRESENT ) {
 			// The slot token is present, obtain information about the token
 			logDebug( _("Retrieving token information for SlotID %ld\n"), ptSlots[ i ] );
-			rv = C_GetTokenInfo( ptSlots[ i ], &tTokenInfo );
+			rv = g_pFcnList->C_GetTokenInfo( ptSlots[ i ], &tTokenInfo );
 			pkcsResult( "C_GetTokenInfo", rv );
 			if ( rv != CKR_OK )
-				goto done;
+				goto out;
 			pkcsTokenInfo( &tTokenInfo );
 
 			// Check for the TPM token
@@ -225,11 +253,17 @@ openToken( char *a_pszTokenLabel ) {
 		rv = CKR_TOKEN_NOT_PRESENT;
 	}
 
-done:
-	if ( !g_bTokenOpen )
-		C_Finalize( NULL );
-
 out:
+	if ( !g_bTokenOpen && g_bInit ) {
+		g_pFcnList->C_Finalize( NULL );
+		g_bInit = FALSE;
+	}
+
+	if ( !g_bTokenOpen && g_pSoLib ) {
+		dlclose( g_pSoLib );
+		g_pSoLib = NULL;
+	}
+
 	return rv;
 }
 
@@ -240,13 +274,21 @@ out:
 CK_RV
 closeToken( ) {
 
-	CK_RV  rv;
-
-	g_bTokenOpen = FALSE;
+	CK_RV  rv = CKR_OK;
 
 	// Tear down the PKCS#11 environment
-	rv = C_Finalize( NULL );
-	pkcsResult( "C_Finalize", rv );
+	if ( g_bInit ) {
+		rv = g_pFcnList->C_Finalize( NULL );
+		pkcsResult( "C_Finalize", rv );
+	}
+
+	// Unload the PKCS#11 library
+	if ( g_pSoLib )
+		dlclose( g_pSoLib );
+
+	g_bTokenOpen = FALSE;
+	g_bInit      = FALSE;
+	g_pSoLib     = NULL;
 
 	return rv;
 }
@@ -261,9 +303,9 @@ initToken( char *a_pszPin ) {
 	CK_RV  rv;
 
 	if ( !g_bTokenOpen )
-		return CKR_TOKEN_NOT_PRESENT;
+		return CKR_GENERAL_ERROR;
 
-	rv = C_InitToken( g_tSlotId, (CK_CHAR *)a_pszPin, strlen( a_pszPin ), g_tToken.label );
+	rv = g_pFcnList->C_InitToken( g_tSlotId, (CK_CHAR *)a_pszPin, strlen( a_pszPin ), g_tToken.label );
 	pkcsResult( "C_InitToken", rv );
 
 	return rv;
@@ -280,10 +322,10 @@ openTokenSession( CK_FLAGS           a_tType,
 	CK_RV  rv;
 
 	if ( !g_bTokenOpen )
-		return CKR_TOKEN_NOT_PRESENT;
+		return CKR_GENERAL_ERROR;
 
 	a_tType |= CKF_SERIAL_SESSION; // This flag must always be set
-	rv = C_OpenSession( g_tSlotId, a_tType, NULL, NULL, a_phSession );
+	rv = g_pFcnList->C_OpenSession( g_tSlotId, a_tType, NULL, NULL, a_phSession );
 	pkcsResult( "C_OpenSession", rv );
 
 	return rv;
@@ -298,7 +340,10 @@ closeTokenSession( CK_SESSION_HANDLE  a_hSession ) {
 
 	CK_RV  rv;
 
-	rv = C_CloseSession( a_hSession );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_CloseSession( a_hSession );
 	pkcsResult( "C_CloseSession", rv );
 
 	return rv;
@@ -314,9 +359,9 @@ closeAllTokenSessions( ) {
 	CK_RV  rv;
 
 	if ( !g_bTokenOpen )
-		return CKR_TOKEN_NOT_PRESENT;
+		return CKR_GENERAL_ERROR;
 
-	rv = C_CloseAllSessions( g_tSlotId );
+	rv = g_pFcnList->C_CloseAllSessions( g_tSlotId );
 	pkcsResult( "C_CloseAllSessions", rv );
 
 	return rv;
@@ -333,7 +378,10 @@ loginToken( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_Login( a_hSession, a_tType, (CK_CHAR *)a_pszPin, strlen( a_pszPin ) );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_Login( a_hSession, a_tType, (CK_CHAR *)a_pszPin, strlen( a_pszPin ) );
 	pkcsResult( "C_Login", rv );
 
 	return rv;
@@ -348,7 +396,10 @@ initPin( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_InitPIN( a_hSession, (CK_CHAR *)a_pszPin, strlen( a_pszPin ) );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_InitPIN( a_hSession, (CK_CHAR *)a_pszPin, strlen( a_pszPin ) );
 	pkcsResult( "C_InitPIN", rv );
 
 	return rv;
@@ -365,7 +416,10 @@ setPin( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_SetPIN( a_hSession, (CK_CHAR *)a_pszOldPin, strlen( a_pszOldPin ),
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_SetPIN( a_hSession, (CK_CHAR *)a_pszOldPin, strlen( a_pszOldPin ),
 			(CK_CHAR *)a_pszNewPin, strlen( a_pszNewPin ) );
 	pkcsResult( "C_SetPIN", rv );
 
@@ -386,7 +440,10 @@ generateKey( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_GenerateKey( a_hSession, a_ptMechanism, a_ptAttrList, a_ulAttrCount, a_phObject );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_GenerateKey( a_hSession, a_ptMechanism, a_ptAttrList, a_ulAttrCount, a_phObject );
 	pkcsResult( "C_GenerateKey", rv );
 
 	return rv;
@@ -405,7 +462,10 @@ createObject( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_CreateObject( a_hSession, a_ptAttrList, a_ulAttrCount, a_phObject );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_CreateObject( a_hSession, a_ptAttrList, a_ulAttrCount, a_phObject );
 	pkcsResult( "C_CreateObject", rv );
 
 	return rv;
@@ -421,7 +481,10 @@ destroyObject( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_DestroyObject( a_hSession, a_hObject );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_DestroyObject( a_hSession, a_hObject );
 	pkcsResult( "C_DestroyObject", rv );
 
 	return rv;
@@ -440,7 +503,10 @@ getObjectAttributes( CK_SESSION_HANDLE  a_hSession,
 
 	CK_RV  rv;
 
-	rv = C_GetAttributeValue( a_hSession, a_hObject, a_ptAttrList, a_ulAttrCount );
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
+	rv = g_pFcnList->C_GetAttributeValue( a_hSession, a_hObject, a_ptAttrList, a_ulAttrCount );
 	pkcsResultException( "C_GetAttributeValue", rv, CKR_ATTRIBUTE_TYPE_INVALID );
 
 	return rv;
@@ -467,8 +533,11 @@ findObjects( CK_SESSION_HANDLE  a_hSession,
 	*a_phObjList = NULL;
 	*a_pulObjCount = 0;
 
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
 	// Initialize the find operation
-	rv = C_FindObjectsInit( a_hSession, a_ptAttrList, a_ulAttrCount );
+	rv = g_pFcnList->C_FindObjectsInit( a_hSession, a_ptAttrList, a_ulAttrCount );
 	pkcsResult( "C_FindObjectsInit", rv );
 	if ( rv != CKR_OK )
 		goto out;
@@ -493,7 +562,7 @@ findObjects( CK_SESSION_HANDLE  a_hSession,
 		}
 
 		// Find the matching objects
-		rv = C_FindObjects( a_hSession, phObjList + ulCurCount, TPM_FIND_MAX, &ulCount );
+		rv = g_pFcnList->C_FindObjects( a_hSession, phObjList + ulCurCount, TPM_FIND_MAX, &ulCount );
 		pkcsResult( "C_FindObjects", rv );
 		if ( rv != CKR_OK )
 			goto done;
@@ -506,7 +575,7 @@ findObjects( CK_SESSION_HANDLE  a_hSession,
 
 done:
 	// Terminate the find operation
-	rv_temp = C_FindObjectsFinal( a_hSession );
+	rv_temp = g_pFcnList->C_FindObjectsFinal( a_hSession );
 	pkcsResult( "C_FindObjectsFinal", rv_temp );
 
 out:
@@ -1012,13 +1081,16 @@ encryptData( CK_SESSION_HANDLE  a_hSession,
 	CK_ULONG      ulBufferLen   = 0;
 	CK_ULONG      ulOutDataLen  = 0;
 
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
 	// Check the key
 	rv = checkKey( a_hSession, a_hObject, CKO_SECRET_KEY, CKK_AES );
 	if ( rv != CKR_OK )
 		goto out;
 
 	// Initialize the encryption operation
-	rv = C_EncryptInit( a_hSession, a_ptMechanism, a_hObject );
+	rv = g_pFcnList->C_EncryptInit( a_hSession, a_ptMechanism, a_hObject );
 	pkcsResult( "C_EncryptInit", rv );
 	if ( rv != CKR_OK )
 		goto out;
@@ -1031,7 +1103,7 @@ encryptData( CK_SESSION_HANDLE  a_hSession,
 		}
 
 		// Check the output buffer size needed
-		rv = C_EncryptUpdate( a_hSession, pbInData, ulInDataLen,
+		rv = g_pFcnList->C_EncryptUpdate( a_hSession, pbInData, ulInDataLen,
 			NULL, &ulOutDataLen );
 		pkcsResult( "C_EncryptUpdate", rv );
 		if ( rv != CKR_OK )
@@ -1050,7 +1122,7 @@ encryptData( CK_SESSION_HANDLE  a_hSession,
 		}
 
 		// Encrypt the input data
-		rv = C_EncryptUpdate( a_hSession, pbInData, ulInDataLen,
+		rv = g_pFcnList->C_EncryptUpdate( a_hSession, pbInData, ulInDataLen,
 			pbBuffer, &ulOutDataLen );
 		pkcsResult( "C_EncryptUpdate", rv );
 		if ( rv != CKR_OK )
@@ -1068,7 +1140,7 @@ out:
 	// For AES any remaining data will cause an error, so provide
 	// a buffer which will not be filled in anyway
 	ulOutDataLen = ulBufferLen;
-	rv = C_EncryptFinal( a_hSession, pbBuffer, &ulOutDataLen );
+	rv = g_pFcnList->C_EncryptFinal( a_hSession, pbBuffer, &ulOutDataLen );
 	pkcsResult( "C_EncryptFinal", rv );
 
 	free( pbBuffer );
@@ -1101,13 +1173,16 @@ decryptData( CK_SESSION_HANDLE  a_hSession,
 	CK_ULONG      ulBufferLen   = 0;
 	CK_ULONG      ulOutDataLen  = 0;
 
+	if ( !g_bTokenOpen )
+		return CKR_GENERAL_ERROR;
+
 	// Check the key
 	rv = checkKey( a_hSession, a_hObject, CKO_SECRET_KEY, CKK_AES );
 	if ( rv != CKR_OK )
 		goto out;
 
 	// Initialize the decryption operation
-	rv = C_DecryptInit( a_hSession, a_ptMechanism, a_hObject );
+	rv = g_pFcnList->C_DecryptInit( a_hSession, a_ptMechanism, a_hObject );
 	pkcsResult( "C_DecryptInit", rv );
 	if ( rv != CKR_OK )
 		goto out;
@@ -1120,7 +1195,7 @@ decryptData( CK_SESSION_HANDLE  a_hSession,
 		}
 
 		// Check the output buffer size needed
-		rv = C_DecryptUpdate( a_hSession, pbInData, ulInDataLen,
+		rv = g_pFcnList->C_DecryptUpdate( a_hSession, pbInData, ulInDataLen,
 			NULL, &ulOutDataLen );
 		pkcsResult( "C_DecryptUpdate", rv );
 		if ( rv != CKR_OK )
@@ -1139,7 +1214,7 @@ decryptData( CK_SESSION_HANDLE  a_hSession,
 		}
 
 		// Decrypt the input data
-		rv = C_DecryptUpdate( a_hSession, pbInData, ulInDataLen,
+		rv = g_pFcnList->C_DecryptUpdate( a_hSession, pbInData, ulInDataLen,
 			pbBuffer, &ulOutDataLen );
 		pkcsResult( "C_DecryptUpdate", rv );
 		if ( rv != CKR_OK )
@@ -1154,7 +1229,7 @@ decryptData( CK_SESSION_HANDLE  a_hSession,
 out:
 	// For AES any remaining data will cause an error, so provide
 	// a buffer which will not be filled in anyway
-	rv = C_DecryptFinal( a_hSession, pbBuffer, &ulOutDataLen );
+	rv = g_pFcnList->C_DecryptFinal( a_hSession, pbBuffer, &ulOutDataLen );
 	pkcsResult( "C_DecryptFinal", rv );
 
 	free( pbBuffer );

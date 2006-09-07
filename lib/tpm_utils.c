@@ -54,7 +54,7 @@ genericOptHandler( int a_iNumArgs, char **a_pszArgs,
 							   : logCmdHelp;
 
 	char  szShortOpts[strlen( pszGenShortOpts )
-			  + ( a_pszShortOpts == NULL ) ? 0 : strlen( a_pszShortOpts )
+			  + ( ( a_pszShortOpts == NULL ) ? 0 : strlen( a_pszShortOpts ) )
 			  + 1];
 
 	int            iNumGenLongOpts = sizeof( sGenLongOpts ) / sizeof( struct option );

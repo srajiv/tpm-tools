@@ -131,14 +131,14 @@ main( int    a_iArgc,
 			if ( !pszReply ||
 				( strlen( pszReply ) == 0 ) ||
 				( strcasecmp( pszReply, TOKEN_CLEAR_NO ) == 0 ) ) {
-				goto done;
+				goto out;
 			}
 		}
 
 		// Prompt for the current SO password
 		pszSoPin = getPlainPasswd( TOKEN_SO_PIN_PROMPT, FALSE );
 		if ( !pszSoPin )
-			goto done;
+			goto out;
 	}
 	else
 		pszSoPin = strdup( TOKEN_SO_INIT_PIN );
@@ -146,24 +146,24 @@ main( int    a_iArgc,
 	// Clear the TPM token
 	rv = initToken( pszSoPin );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Open a session
 	rv = openTokenSession( CKF_RW_SESSION, &hSession );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Login to the token
 	rv = loginToken( hSession, CKU_SO, TOKEN_SO_INIT_PIN );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	sprintf( szSoNewPinPrompt, TOKEN_SO_NEW_PIN_PROMPT, getMinPinLen( ), getMaxPinLen( ) );
 	while ( TRUE ) {
 		// Prompt for a new SO password
 		pszNewSoPin = getPlainPasswd( szSoNewPinPrompt, TRUE );
 		if ( !pszNewSoPin )
-			goto done;
+			goto out;
 
 		// Set the new password
 		rv = setPin( hSession, TOKEN_SO_INIT_PIN, pszNewSoPin );
@@ -173,7 +173,7 @@ main( int    a_iArgc,
 		if ( ( rv == CKR_PIN_INVALID ) || ( rv == CKR_PIN_LEN_RANGE ) )
 			logError( TOKEN_INVALID_PIN );
 		else
-			goto done;
+			goto out;
 
 		shredPasswd( pszNewSoPin );
 	}
@@ -183,19 +183,19 @@ main( int    a_iArgc,
 	hSession = 0;
 	rv = openTokenSession( CKF_RW_SESSION, &hSession );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Login to the token
 	rv = loginToken( hSession, CKU_USER, TOKEN_USER_INIT_PIN );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	sprintf( szUserNewPinPrompt, TOKEN_USER_NEW_PIN_PROMPT, getMinPinLen( ), getMaxPinLen( ) );
 	while ( TRUE ) {
 		// Prompt for a new User password
 		pszNewUserPin = getPlainPasswd( szUserNewPinPrompt, TRUE );
 		if ( !pszNewUserPin )
-			goto done;
+			goto out;
 
 		// Set the new password
 		rv = setPin( hSession, TOKEN_USER_INIT_PIN, pszNewUserPin );
@@ -205,14 +205,14 @@ main( int    a_iArgc,
 		if ( ( rv == CKR_PIN_INVALID ) || ( rv == CKR_PIN_LEN_RANGE ) )
 			logError( TOKEN_INVALID_PIN );
 		else
-			goto done;
+			goto out;
 
 		shredPasswd( pszNewUserPin );
 	}
 
 	rc = 0;
 
-done:
+out:
 	free( pszReply );
 	shredPasswd( pszSoPin );
 	shredPasswd( pszNewSoPin );
@@ -223,7 +223,6 @@ done:
 
 	closeToken( );
 
-out:
 	if ( rc == 0 )
 		logInfo( TOKEN_CMD_SUCCESS, a_pszArgv[ 0 ] );
 	else

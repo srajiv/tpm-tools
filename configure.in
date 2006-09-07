@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-AC_INIT(tpm-tools, 1.2.4, trousers-tech@lists.sf.net)
+AC_INIT(tpm-tools, 1.2.5, trousers-tech@lists.sf.net)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CANONICAL_TARGET
 
@@ -54,9 +54,8 @@ AC_ARG_ENABLE(pkcs11_support,
    AC_MSG_RESULT([*** Not building data_mgmt at user request ***])],)
 
 if test "x$disable_pkcs11_support" != "xyes"; then
-  AC_CHECK_LIB(opencryptoki, C_Initialize, [OPENCRYPTOKI_LIB="1"], [OPENCRYPTOKI_LIB="0"])
   AC_CHECK_HEADER(opencryptoki/pkcs11.h, [OPENCRYPTOKI_INC="1"], [OPENCRYPTOKI_INC="0"])
-  if test "$OPENCRYPTOKI_LIB" = "1" -a "$OPENCRYPTOKI_INC" = "1"; then
+  if test "$OPENCRYPTOKI_INC" = "1"; then
     OPENCRYPTOKI="1"
   fi
 fi

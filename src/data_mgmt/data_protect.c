@@ -103,7 +103,7 @@ usageCallback( const char *a_szCmd ) {
 	logCmdOption( "-d, --decrypt",
 			_("Decrypt the input data") );
 	logCmdOption( "-e, --encrypt",
-			_("Encrypt the input data") );
+			_("Encrypt the input data (default)") );
 	logCmdOption( "-i, --infile FILE",
 			_("Use FILE as the input to the specified operation") );
 	logCmdOption( "-k, --token STRING",
@@ -440,26 +440,26 @@ main( int    a_iArgc,
 	// Make sure the token is initialized
 	if ( !isTokenInitialized( ) ) {
 		logMsg( TOKEN_NOT_INIT_ERROR );
-		goto done;
+		goto out;
 	}
 
 	// Open a session
 	rv = openTokenSession( CKF_RW_SESSION, &hSession );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	pszPin = getPlainPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
 	if ( !pszPin )
-		goto done;
+		goto out;
 
 	// Login to the token
 	rv = loginToken( hSession, CKU_USER, pszPin );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Obtain the key
 	if ( getKey( hSession, &hObject ) == -1 )
-		goto done;
+		goto out;
 
 	// Perform the operation
 	if ( g_bEncrypt )
@@ -470,11 +470,11 @@ main( int    a_iArgc,
 			readData, writeData );
 
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	rc = 0;
 
-done:
+out:
 	shredPasswd( pszPin );
 
 	if ( hSession )
@@ -482,7 +482,6 @@ done:
 
 	closeToken( );
 
-out:
 	free( g_pszInFile );
 	free( g_pszOutFile );
 	free( g_pbInData );

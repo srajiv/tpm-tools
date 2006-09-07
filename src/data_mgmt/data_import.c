@@ -1046,41 +1046,41 @@ main( int    a_iArgc,
 	// Make sure the token is initialized
 	if ( !isTokenInitialized( ) ) {
 		logMsg( TOKEN_NOT_INIT_ERROR );
-		goto done;
+		goto out;
 	}
 
 	// Create the structures based on the input
 	if ( !g_pszType ) {
 		if ( readX509Cert( g_pszFile, TRUE, &pX509 ) == -1 )
-			goto done;
+			goto out;
 		if ( readRsaKey( g_pszFile, &pRsa ) == -1 )
-			goto done;
+			goto out;
 		if ( !pX509 && !pRsa ) {
 			logError( TOKEN_OBJECT_ERROR );
-			goto done;
+			goto out;
 		}
 	}
 	else if ( strcmp( g_pszType, TOKEN_OBJECT_CERT ) == 0 ) {
 		if ( readX509Cert( g_pszFile, TRUE, &pX509 ) == -1 )
-			goto done;
+			goto out;
 		if ( !pX509 ) {
 			logError( TOKEN_OBJECT_ERROR );
-			goto done;
+			goto out;
 		}
 	}
 	else if ( strcmp( g_pszType, TOKEN_OBJECT_KEY ) == 0 ) {
 		if ( readRsaKey( g_pszFile, &pRsa ) == -1 )
-			goto done;
+			goto out;
 		if ( !pRsa ) {
 			logError( TOKEN_OBJECT_ERROR );
-			goto done;
+			goto out;
 		}
 	}
 
 	// Open a session
 	rv = openTokenSession( CKF_RW_SESSION, &hSession );
 	if ( rv != CKR_OK )
-		goto done;
+		goto out;
 
 	// Check the scope of the request, which will determine the login
 	// requirements:
@@ -1089,33 +1089,33 @@ main( int    a_iArgc,
 	if ( !g_bPublic ) {
 		pszPin = getPlainPasswd( TOKEN_USER_PIN_PROMPT, FALSE );
 		if ( !pszPin )
-			goto done;
+			goto out;
 
 		// Login to the token
 		rv = loginToken( hSession, CKU_USER, pszPin );
 		if ( rv != CKR_OK )
-			goto done;
+			goto out;
 	}
 
 	// Obtain the subject name and id, these are used to
 	// uniquely identify the certificate/key relation
 	if ( getSubjectId( pX509 ) == -1 ) {
 		logError( TOKEN_ID_ERROR );
-		goto done;
+		goto out;
 	}
 
 	// Now check for existing objects that may get replaced
 	// prior to processing the request(s)
 	if ( pX509 ) {
 		if ( checkX509Cert( hSession ) == -1 ) {
-			goto done;
+			goto out;
 		}
 
 		// If we are not importing any RSA keys, use the
 		// public key from the certificate
 		if ( !pRsa ) {
 			if ( checkRsaPubKey( hSession ) == -1 ) {
-				goto done;
+				goto out;
 			}
 		}
 
@@ -1123,30 +1123,30 @@ main( int    a_iArgc,
 	}
 	if ( pRsa ) {
 		if ( checkRsaKey( hSession ) == -1 ) {
-			goto done;
+			goto out;
 		}
 	}
 
 	// Process the request(s)
 	if ( pX509 ) {
 		if ( doX509Cert( pX509, hSession ) == -1 )
-			goto done;
+			goto out;
 
 		// If we are not importing any RSA keys, use the
 		// public key from the certificate
 		if ( !pRsa ) {
 			if ( doRsaPubKey( pPubRsa, hSession ) == -1 )
-				goto done;
+				goto out;
 		}
 	}
 	if ( pRsa ) {
 		if ( doRsaKey( pRsa, hSession ) == -1 )
-			goto done;
+			goto out;
 	}
 
 	rc = 0;
 
-done:
+out:
 	shredPasswd( pszPin );
 
 	if ( hSession )
@@ -1154,7 +1154,6 @@ done:
 
 	closeToken( );
 
-out:
 	free( g_pszFile );
 	free( g_pszIdFile );
 	free( g_pszType );
