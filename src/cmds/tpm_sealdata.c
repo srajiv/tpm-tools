@@ -123,13 +123,6 @@ int main(int argc, char **argv)
 
 	initIntlSys();
 
-	if (genericOptHandler(argc, argv, "i:o:p:", opts,
-			      sizeof(opts) / sizeof(struct option), parse,
-			      help) != 0) {
-		logError(_("Invalid option\n"));
-		goto out;
-	}
-
 	if (contextCreate(&hContext) != TSS_SUCCESS)
 		goto out;
 
@@ -138,6 +131,13 @@ int main(int argc, char **argv)
 
 	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
 		goto out_close;
+
+	if (genericOptHandler(argc, argv, "i:o:p:", opts,
+			      sizeof(opts) / sizeof(struct option), parse,
+			      help) != 0) {
+		logError(_("Invalid option\n"));
+		goto out_close;
+	}
 
 	/* Create a BIO for the input file */
 	if ((bin = BIO_new(BIO_s_file())) == NULL) {
