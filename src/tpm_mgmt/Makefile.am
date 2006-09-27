@@ -21,7 +21,8 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-noinst_PROGRAMS = 	tpm_startup
+noinst_PROGRAMS = 	tpm_startup	\
+			tpm_reset
 
 sbin_PROGRAMS	=	tpm_changeownerauth \
 			tpm_clear	\
@@ -42,6 +43,7 @@ AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi
 
 tpm_startup_SOURCES = 		tpm_startup.c
+tpm_reset_SOURCES = 		tpm_reset.c
 
 tpm_changeownerauth_SOURCES =	tpm_changeauth.c
 tpm_clear_SOURCES	=	tpm_clear.c
