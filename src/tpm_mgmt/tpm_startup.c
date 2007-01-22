@@ -35,6 +35,13 @@ int main() {
 	        0, 0, 0, 153,   /* TPM_ORD_Startup */
 	        0, 1            /* ST_CLEAR */
 	};
+
+	char selftest[] = {
+        	0, 193,         /* TPM_TAG_RQU_COMMAND */
+	        0, 0, 0, 10,    /* length */
+	        0, 0, 0, 80     /* TPM_ORD_SelfTestFull */
+	};
+
 	int fd;
 	int err;
 	int rc = 1;
@@ -73,6 +80,28 @@ int main() {
 	printf( "Startup successful\n" );
 
 out:
+	err = write( fd, selftest, sizeof(selftest) );
+
+	if ( err != sizeof( selftest ) ){
+		printf( "Error occured while writing the selftest command: %d\n", errno );
+		goto out;
+	}
+	
+	err = read( fd, selftest, sizeof(selftest) );
+	if ( err != 10 ) {
+		printf( "Error occured while reading the selftest result: %d %d %s\n", err, errno, strerror(errno));
+		goto out;
+	}
+
+	err = ntohl( *((uint32_t *)(selftest+6)) );
+	if ( err != 0 ) {
+		printf( "TPM Error occured: %d\n", err );
+		goto out;
+	} else {
+		rc = 0;
+		printf( "Selftest successful\n" );
+	}
+
 	close(fd);
 
 out_noclose:
