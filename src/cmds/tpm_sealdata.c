@@ -165,6 +165,7 @@ int main(int argc, char **argv)
 	    != TSS_SUCCESS)
 		goto out_close;
 
+	/* Use the context's default policy for the SRK secret */
 	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
 		goto out_close;
 
@@ -178,11 +179,16 @@ int main(int argc, char **argv)
 	     &hKey) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policyGet(hKey, &hPolicy) != TSS_SUCCESS)
+	if (contextCreateObject
+	    (hContext, TSS_OBJECT_TYPE_POLICY, TSS_POLICY_USAGE,
+	     &hPolicy) != TSS_SUCCESS)
 		goto out_close;
 
 	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), (BYTE *)TPMSEAL_SECRET)
 	    != TSS_SUCCESS)
+		goto out_close;
+
+	if (policyAssign(hPolicy, hKey) != TSS_SUCCESS)
 		goto out_close;
 
 	/* Create the RSA key (under the SRK) */
@@ -200,11 +206,16 @@ int main(int argc, char **argv)
 	     &hEncdata) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policyGet(hEncdata, &hPolicy) != TSS_SUCCESS)
+	if (contextCreateObject
+	    (hContext, TSS_OBJECT_TYPE_POLICY, TSS_POLICY_USAGE,
+	     &hPolicy) != TSS_SUCCESS)
 		goto out_close;
 
 	if (policySetSecret(hPolicy, strlen(TPMSEAL_SECRET), (BYTE *)TPMSEAL_SECRET)
 	    != TSS_SUCCESS)
+		goto out_close;
+
+	if (policyAssign(hPolicy, hEncdata) != TSS_SUCCESS)
 		goto out_close;
 
 	/* Encrypt and seal the symmetric key */

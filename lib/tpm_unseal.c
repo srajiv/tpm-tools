@@ -42,6 +42,7 @@ enum tspi_errors {
 	ETSPIGETPO,
 	ETSPIPOLSS,
 	ETSPIDATU,
+	ETSPIPOLATO
 };
 
 #define TSPI_FUNCTION_NAME_MAX 30
@@ -54,7 +55,8 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 				"Tspi_SetAttribData",
 				"Tspi_GetPolicyObject",
 				"Tspi_Policy_SetSecret",
-				"Tspi_Data_Unseal" 
+				"Tspi_Data_Unseal",
+				"Tspi_Policy_AssignToObject"
 };
 
 #define TSSKEY_DEFAULT_SIZE 768
@@ -296,16 +298,23 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto tss_out;
 	}
 
-	if ((rc=Tspi_GetPolicyObject(hEncdata, TSS_POLICY_USAGE, 
+	if ((rc=Tspi_Context_CreateObject(hContext,
+					TSS_OBJECT_TYPE_POLICY,
+					TSS_POLICY_USAGE,
 					&hPolicy)) != TSS_SUCCESS) {
-		tpm_errno = ETSPIGETPO;
+		tpm_errno = ETSPICTXCO;
 		goto tss_out;
 	}
 
-	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
-					strlen(TPMSEAL_SECRET), 
+	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN,
+					strlen(TPMSEAL_SECRET),
 					(BYTE *)TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
+		goto tss_out;
+	}
+
+	if ((rc=Tspi_Policy_AssignToObject(hPolicy, hEncdata)) != TSS_SUCCESS) {
+		tpm_errno = ETSPIPOLATO;
 		goto tss_out;
 	}
 
@@ -315,6 +324,8 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto tss_out;
 	}
 
+	/* Don't create a new policy for the SRK's secret, just use the context's
+	 * default policy */
 	if ((rc=Tspi_GetPolicyObject(hSrk, TSS_POLICY_USAGE, 
 					&hPolicy)) != TSS_SUCCESS){
 		tpm_errno = ETSPIGETPO;
@@ -334,16 +345,23 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto tss_out;
 	}
 
-	if ((rc=Tspi_GetPolicyObject(hKey, TSS_POLICY_USAGE, &hPolicy)) 
-		!= TSS_SUCCESS) {
-		tpm_errno = ETSPIGETPO;
+	if ((rc=Tspi_Context_CreateObject(hContext,
+					TSS_OBJECT_TYPE_POLICY,
+					TSS_POLICY_USAGE,
+					&hPolicy)) != TSS_SUCCESS) {
+		tpm_errno = ETSPICTXCO;
 		goto tss_out;
 	}
 
-	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 
-					strlen(TPMSEAL_SECRET), 
+	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN,
+					strlen(TPMSEAL_SECRET),
 					(BYTE *)TPMSEAL_SECRET)) != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
+		goto tss_out;
+	}
+
+	if ((rc=Tspi_Policy_AssignToObject(hPolicy, hKey)) != TSS_SUCCESS) {
+		tpm_errno = ETSPIPOLATO;
 		goto tss_out;
 	}
 
