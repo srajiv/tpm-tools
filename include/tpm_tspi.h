@@ -70,6 +70,7 @@ TSS_RESULT contextCloseObject(TSS_HCONTEXT a_hContext,
 			      TSS_HOBJECT a_hObject);
 TSS_RESULT contextGetTpm(TSS_HCONTEXT a_hContext, TSS_HTPM * a_hTpm);
 TSS_RESULT policyGet(TSS_HOBJECT a_hObject, TSS_HPOLICY * a_hPolicy);
+TSS_RESULT policyAssign(TSS_HPOLICY a_hPolicy, TSS_HOBJECT a_hObject);
 TSS_RESULT policySetSecret(TSS_HPOLICY a_hPolicy,
 			   UINT32 a_uiSecretLen, BYTE * a_chSecret);
 
