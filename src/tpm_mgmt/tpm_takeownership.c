@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 	    != TSS_SUCCESS)
 		goto out_close;
 
-	fSrkAttrs = TSS_KEY_TSP_SRK;
+	fSrkAttrs = TSS_KEY_TSP_SRK | TSS_KEY_AUTHORIZATION;
 	
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_RSAKEY, fSrkAttrs,
