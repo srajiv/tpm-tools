@@ -379,6 +379,15 @@ TSS_RESULT policyGet(TSS_HOBJECT a_hObject, TSS_HPOLICY * a_hPolicy)
 	return result;
 }
 
+TSS_RESULT policyAssign(TSS_HPOLICY a_hPolicy, TSS_HOBJECT a_hObject)
+{
+	TSS_RESULT result =
+	    Tspi_Policy_AssignToObject(a_hPolicy, a_hObject);
+	tspiResult("Tspi_Policy_AssignToObject", result);
+
+	return result;
+}
+
 TSS_RESULT
 policySetSecret(TSS_HPOLICY a_hPolicy,
 		UINT32 a_uiSecretLen, BYTE * a_chSecret)
