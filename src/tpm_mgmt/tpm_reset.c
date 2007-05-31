@@ -25,14 +25,16 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <netinet/in.h>
 
 int main() {
 
 	char reset[] = {
-        	0, 193,         /* TPM_TAG_RQU_COMMAND */
-	        0, 0, 0, 10,    /* length */
-	        0, 0, 0, 90   /* TPM_ORD_Reset */
+		0, 193,		/* TPM_TAG_RQU_COMMAND */
+		0, 0, 0, 10,	/* length */
+		0, 0, 0, 90	/* TPM_ORD_Reset */
 	};
+
 	int fd;
 	int err;
 	int rc = 1;
@@ -56,14 +58,7 @@ int main() {
 		goto out;
 	}
 
-	/* ENDIANESS ISSUES HERE */
-	//memcpy( &err, startup+6, 4 ); //for PPC64
-	
-	memcpy( &err+3, reset+6, 1);
-	memcpy( &err+2, reset+7, 1);
-	memcpy( &err+1, reset+8, 1);
-	memcpy( &err, reset+9, 1);
-
+	err = ntohl( *((uint32_t *)(reset+6)) );
 	if ( err == 38 ) {
 		printf( "TPM not started.\n" );
 		goto out;

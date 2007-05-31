@@ -42,7 +42,7 @@ enum tspi_errors {
 	ETSPIGETPO,
 	ETSPIPOLSS,
 	ETSPIDATU,
-	ETSPIPOLATO
+	ETSPIPOLATO,
 };
 
 #define TSPI_FUNCTION_NAME_MAX 30
@@ -56,7 +56,7 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 				"Tspi_GetPolicyObject",
 				"Tspi_Policy_SetSecret",
 				"Tspi_Data_Unseal",
-				"Tspi_Policy_AssignToObject"
+				"Tspi_Policy_AssignToObject",
 };
 
 #define TSSKEY_DEFAULT_SIZE 768

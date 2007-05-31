@@ -306,10 +306,10 @@ int main(int argc, char **argv)
 	iRc = 0;
 	logSuccess(argv[0]);
 
-      out_close:
+out_close:
 	contextClose(hContext);
 
-      out:
+out:
 	if (bin)
 		BIO_free(bin);
 	if (bdata)
