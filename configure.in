@@ -41,6 +41,22 @@ AC_CHECK_PROGS(RM, rm)
 
 AM_GNU_GETTEXT([external])
 
+# Non-standard OpenSSL location
+AC_MSG_CHECKING([Non-standard OpenSSL location])
+AC_ARG_WITH(openssl,
+	    AC_HELP_STRING([--with-openssl=PATH], [Location of openssl libs/includes]),
+	    [OPENSSL_INCLUDE_DIR="$withval/include"
+	     OPENSSL_LIB_DIR="$withval/lib"
+	    if test ! -d $OPENSSL_INCLUDE_DIR -o ! -d $OPENSSL_LIB_DIR; then
+		    AC_MSG_ERROR([$OPENSSL_INCLUDE_DIR or $OPENSSL_LIB_DIR doen't exist!])
+	    else
+		    AC_MSG_RESULT([yes])
+		    CFLAGS="$CFLAGS -L$OPENSSL_LIB_DIR -I$OPENSSL_INCLUDE_DIR"
+		    AC_SUBST([OPENSSL_LIB_DIR])
+	    fi],
+	    [AC_MSG_RESULT([no])
+	    AC_SUBST([OPENSSL_LIB_DIR], []) ] )
+
 AC_CHECK_LIB(tspi, Tspi_Context_Create, [TSS_LIB="1"], [AC_MSG_ERROR([tss lib not found: libtspi.so])])
 AC_CHECK_HEADER(trousers/tss.h, [TSS_INC="1"], [AC_MSG_ERROR([tss header not found: trousers/tss.h])])
 
@@ -92,6 +108,7 @@ if test "$DEBUG" == "yes"; then
   CFLAGS="$CFLAGS -DDEBUG -g -O0 -Wall -Werror"
 fi
 
+
 AC_CONFIG_FILES(./Makefile		\
 		po/Makefile.in		\
 		m4/Makefile 		\
@@ -101,6 +118,7 @@ AC_CONFIG_FILES(./Makefile		\
 		src/tpm_mgmt/Makefile	\
 		src/cmds/Makefile	\
 		src/data_mgmt/Makefile  \
+		dist/tpm-tools.spec	\
 		man/Makefile            \
 		man/man1/Makefile       \
 		man/man3/Makefile       \
