@@ -36,6 +36,6 @@ touch m4/Makefile.am
 gettextize -c --force --no-changelog || exit
 
 aclocal || exit
-libtoolize -c || exit 
+libtoolize --force -c || exit 
 automake -c --add-missing --foreign || exit 
 autoconf
