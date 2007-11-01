@@ -32,6 +32,7 @@
 static TSS_BOOL bValue = TRUE;
 static BOOL bCheck = FALSE;
 static BOOL changeRequested = FALSE;
+static BOOL isWellKnown = FALSE;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -51,6 +52,10 @@ static int parse(const int aOpt, const char *aArg)
 		bValue = TRUE;
 		changeRequested = TRUE;
 		break;
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
+		break;
 	default:
 		return -1;
 	}
@@ -65,6 +70,8 @@ static void help(const char *aCmd)
 	logCmdOption("-s, --status", _("Display current status"));
 	logCmdOption("-a, --allow", _("Allow TPM takeownership command"));
 	logCmdOption("-p, --prevent", _("Prevent TPM takeownership command"));
+	logCmdOption("-z, --well-known",
+		     _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data"));
 }
 
 int main(int argc, char **argv)
@@ -79,12 +86,14 @@ int main(int argc, char **argv)
 	struct option opts[] = { {"allow", no_argument, NULL, 'a'},
 	{"prevent", no_argument, NULL, 'p'},
 	{"status", no_argument, NULL, 's'},
+	{"well-known", no_argument, NULL, 'z'},
 	};
+	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "aps", opts, sizeof(opts) / sizeof(struct option),
+	    (argc, argv, "apsz", opts, sizeof(opts) / sizeof(struct option),
 	     parse, help) != 0)
 		goto out;
 
@@ -98,10 +107,16 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	if (bCheck || !changeRequested) {
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-		if (!szTpmPasswd) {
-			logMsg(_("Failed to get password\n"));
-			goto out_close;
+		if (isWellKnown) {
+			szTpmPasswd = (char *)well_known;
+			pswd_len = sizeof(well_known);
+		} else {
+			// Prompt for owner password
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
 		}
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
@@ -131,7 +146,7 @@ int main(int argc, char **argv)
 	contextClose(hContext);
 
       out:
-	if (szTpmPasswd)
+	if (szTpmPasswd && !isWellKnown)
 		shredPasswd(szTpmPasswd);
 	return iRc;
 }

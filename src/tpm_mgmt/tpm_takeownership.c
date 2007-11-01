@@ -26,6 +26,27 @@ static void help(const char* aCmd)
 {
 	logCmdHelp(aCmd);
 	logUnicodeCmdOption();
+	logCmdOption("-y, --owner-well-known", _("Set the owner secret to all zeros (20 bytes of zeros)."));
+	logCmdOption("-z, --srk-well-known", _("Set the SRK secret to all zeros (20 bytes of zeros)."));
+}
+
+static BOOL ownerWellKnown = FALSE;
+static BOOL srkWellKnown = FALSE;
+
+static int parse(const int aOpt, const char *aArg)
+{
+
+	switch (aOpt) {
+	case 'y':
+		ownerWellKnown = TRUE;
+		break;
+	case 'z':
+		srkWellKnown = TRUE;
+		break;
+	default:
+		return -1;
+	}
+	return 0;
 }
 
 static inline TSS_RESULT tpmTakeOwnership(TSS_HTPM a_hTpm, TSS_HKEY a_hSrk)
@@ -50,21 +71,31 @@ int main(int argc, char **argv)
 	TSS_FLAG fSrkAttrs;
 	TSS_HPOLICY hTpmPolicy, hSrkPolicy;
 	int iRc = -1;
+	BYTE well_known_secret[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
+	struct option opts[] = {
+	{"owner-well-known", no_argument, NULL, 'y'},
+	{"srk-well-known", no_argument, NULL, 'z'},
+	};
 
-        initIntlSys();
+	initIntlSys();
 
-	if (genericOptHandler(argc, argv, "", NULL, 0, NULL, help) != 0)
+	if (genericOptHandler
+	    (argc, argv, "yz", opts, sizeof(opts) / sizeof(struct option),
+	     parse, help) != 0)
 		goto out;
 
-	// Prompt for owner password
-	szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, TRUE);
-	if (!szTpmPasswd) {
-		goto out;
+	if (!ownerWellKnown) {
+		// Prompt for owner password
+		szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, TRUE);
+		if (!szTpmPasswd)
+			goto out;
 	}
-	// Prompt for srk password
-	szSrkPasswd = getPasswd(_("Enter SRK password: "), &srk_len, TRUE);
-	if (!szSrkPasswd) {
-		goto out;
+
+	if (!srkWellKnown) {
+		// Prompt for srk password
+		szSrkPasswd = getPasswd(_("Enter SRK password: "), &srk_len, TRUE);
+		if (!szSrkPasswd)
+			goto out;
 	}
 
 	if (contextCreate(&hContext) != TSS_SUCCESS)
@@ -79,12 +110,17 @@ int main(int argc, char **argv)
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hTpmPolicy, tpm_len, (BYTE *)szTpmPasswd)
-	    != TSS_SUCCESS)
-		goto out_close;
+	if (ownerWellKnown) {
+		srk_len = TPM_SHA1_160_HASH_LEN;
+		if (policySetSecret(hSrkPolicy, srk_len, well_known_secret) != TSS_SUCCESS)
+			goto out_obj_close;
+	} else {
+		if (policySetSecret(hTpmPolicy, tpm_len, (BYTE *)szTpmPasswd) != TSS_SUCCESS)
+			goto out_close;
+	}
 
 	fSrkAttrs = TSS_KEY_TSP_SRK | TSS_KEY_AUTHORIZATION;
-	
+
 	if (contextCreateObject
 	    (hContext, TSS_OBJECT_TYPE_RSAKEY, fSrkAttrs,
 	     &hSrk) != TSS_SUCCESS)
@@ -93,9 +129,14 @@ int main(int argc, char **argv)
 	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
 		goto out_obj_close;
 
-	if (policySetSecret(hSrkPolicy, srk_len, (BYTE *)szSrkPasswd)
-		    != TSS_SUCCESS)
-		goto out_obj_close;
+	if (srkWellKnown) {
+		srk_len = TPM_SHA1_160_HASH_LEN;
+		if (policySetSecret(hSrkPolicy, srk_len, well_known_secret) != TSS_SUCCESS)
+			goto out_obj_close;
+	} else {
+		if (policySetSecret(hSrkPolicy, srk_len, (BYTE *)szSrkPasswd) != TSS_SUCCESS)
+			goto out_obj_close;
+	}
 
 	if (tpmTakeOwnership(hTpm, hSrk) != TSS_SUCCESS)
 		goto out_obj_close;
@@ -103,18 +144,18 @@ int main(int argc, char **argv)
 	iRc = 0;
 	logSuccess(argv[0]);
 
-      out_obj_close:
-	contextCloseObject(hContext, hSrk);
+	out_obj_close:
+		contextCloseObject(hContext, hSrk);
 
-      out_close:
-	contextClose(hContext);
+	out_close:
+		contextClose(hContext);
 
-      out:
-	if (szTpmPasswd)
-		shredPasswd(szTpmPasswd);
+	out:
+		if (szTpmPasswd)
+			shredPasswd(szTpmPasswd);
 
-	if (szSrkPasswd)
-		shredPasswd(szSrkPasswd);
+		if (szSrkPasswd)
+			shredPasswd(szSrkPasswd);
 
 	return iRc;
 }

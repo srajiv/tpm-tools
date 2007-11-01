@@ -32,6 +32,8 @@ static void help(const char *aCmd)
 		     _("Remove ability of the owner to clear TPM."));
 	logCmdOption("-f, --force",
 		     _("Remove ability to clear TPM with physical presence.\n\t\tThis action is not persistent"));
+	logCmdOption("-z, --well-known",
+		      _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data"));
 }
 
 enum {
@@ -54,6 +56,7 @@ static struct physFlag flags[] = { {N_("Owner Clear"),
 };
 static BOOL bCheck = FALSE;
 static BOOL bChangeRequested = FALSE;
+static BOOL isWellKnown = FALSE;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -69,6 +72,10 @@ static int parse(const int aOpt, const char *aArg)
 	case 'f':
 		flags[force].disable = TRUE;
 		bChangeRequested = TRUE;
+		break;
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
 		break;
 	default:
 		return -1;
@@ -96,12 +103,14 @@ int main(int argc, char **argv)
 	struct option opts[] = { {"status", no_argument, NULL, 's'},
 	{"owner", no_argument, NULL, 'o'},
 	{"force", no_argument, NULL, 'f'},
+	{"well-known", no_argument, NULL, 'z'},
 	};
+	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "ofs", opts, sizeof(opts) / sizeof(struct option),
+	    (argc, argv, "ofsz", opts, sizeof(opts) / sizeof(struct option),
 	     parse, help) != 0)
 		goto out;
 
@@ -117,10 +126,15 @@ int main(int argc, char **argv)
 
 	if (bCheck || !bChangeRequested) {
 		logInfo(_("Checking current status: \n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-		if (!szTpmPasswd) {
-			logMsg(_("Failed to get password\n"));
-			goto out_close;
+		if (isWellKnown){
+			szTpmPasswd = (char *)well_known;
+			pswd_len = sizeof(well_known);
+		} else {
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
 		}
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
@@ -147,15 +161,18 @@ int main(int argc, char **argv)
 			logDebug(_("Requested to disable: %s ability.\n"),
 				 _(flags[i].name));
 			if (i == owner) {
-				szTpmPasswd =
-				    getPasswd(_("Enter owner password: "),
-					      &pswd_len, FALSE);
-				if (!szTpmPasswd) {
-					logMsg(_("Failed to get password\n"));
-					goto out_close;
+				if (isWellKnown){
+					szTpmPasswd = (char *)well_known;
+					pswd_len = sizeof(well_known);
+				} else {
+					szTpmPasswd = getPasswd(_("Enter owner password: "),
+								&pswd_len, FALSE);
+					if (!szTpmPasswd) {
+						logMsg(_("Failed to get password\n"));
+						goto out_close;
+					}
 				}
-				if (policyGet(hTpm, &hTpmPolicy) !=
-				    TSS_SUCCESS)
+				if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 					goto out_close;
 
 				if (policySetSecret
@@ -180,7 +197,7 @@ int main(int argc, char **argv)
       out_close:
 	contextClose(hContext);
       out:
-	if (szTpmPasswd)
+	if (szTpmPasswd && !isWellKnown)
 		shredPasswd(szTpmPasswd);
 	return iRc;
 }

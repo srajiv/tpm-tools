@@ -29,6 +29,7 @@
 
 static int request = STATUS_CHECK;
 static TSS_FLAG fForce = TSS_TPMSTATUS_OWNERSETDISABLE;
+static BOOL isWellKnown = FALSE;
 /*
  * Affect: Change TPM state between enabled and disabled
  * Default: Display current status
@@ -44,6 +45,8 @@ static void help(const char *cmd)
 	logCmdOption("-d, --disable", _("Disable TPM"));
 	logCmdOption("-f, --force",
 		     _("Use physical presence authorization."));
+	logCmdOption("-z, --well-known",
+		     _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data"));
 
 }
 
@@ -67,6 +70,10 @@ static int parse(const int aOpt, const char *aArg)
 		logDebug(_("Changing mode to use force authorization\n"));
 		fForce = TSS_TPMSTATUS_PHYSICALDISABLE;
 		break;
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
+		break;
 	default:
 		return -1;
 	}
@@ -86,13 +93,15 @@ int main(int argc, char **argv)
 	struct option hOpts[] = { {"enable", no_argument, NULL, 'e'},
 	{"disable", no_argument, NULL, 'd'},
 	{"force", no_argument, NULL, 'f'},
-	{"status", no_argument, NULL, 's'}
+	{"status", no_argument, NULL, 's'},
+	{"well-known", no_argument, NULL, 'z'},
 	};
+	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "edfs", hOpts,
+	    (argc, argv, "edfsz", hOpts,
 	     sizeof(hOpts) / sizeof(struct option), parse, help) != 0)
 		goto out;
 
@@ -108,10 +117,15 @@ int main(int argc, char **argv)
 
 	if ( request == STATUS_CHECK) {
 		logInfo( _("Checking current status:\n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-		if (!szTpmPasswd) {
-			logMsg(_("Failed to get owner password\n"));
-			goto out_close;
+		if (isWellKnown) {
+			szTpmPasswd = (char *)well_known;
+			pswd_len = sizeof(well_known);
+		} else {
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
 		}
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
@@ -127,11 +141,16 @@ int main(int argc, char **argv)
 		logMsg(_("Disabled status: %s\n"), logBool(mapTssBool(bValue)));
 	}else {
 		if (fForce == TSS_TPMSTATUS_OWNERSETDISABLE) {
-			//Prompt for owner password
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-			if (!szTpmPasswd) {
-				logError(_("Failed to get owner password\n"));
-				goto out_close;
+			if (isWellKnown) {
+				szTpmPasswd = (char *)well_known;
+				pswd_len = sizeof(well_known);
+			} else {
+				szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len,
+							FALSE);
+				if (!szTpmPasswd) {
+					logMsg(_("Failed to get password\n"));
+					goto out_close;
+				}
 			}
 
 			if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
@@ -154,7 +173,7 @@ int main(int argc, char **argv)
 
 	//Cleanup
       out_close:
-	if (szTpmPasswd)
+	if (szTpmPasswd && !isWellKnown)
 		shredPasswd(szTpmPasswd);
 
 	contextClose(hContext);

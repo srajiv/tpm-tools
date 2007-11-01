@@ -24,6 +24,7 @@
 
 //Controled by input options
 static BOOL bValue = FALSE;	//If true FORCE CLEAR
+static BOOL isWellKnown = FALSE;
 
 static inline TSS_RESULT tpmClearOwner(TSS_HTPM a_hTpm, BOOL a_bValue)
 {
@@ -40,6 +41,8 @@ static void help(const char *aCmd)
 	logCmdHelp(aCmd);
 	logUnicodeCmdOption();
 	logCmdOption("-f, --force", _("Use physical presence authorization."));
+	logCmdOption("-z, --well-known",
+		     _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data"));
 }
 
 static int parse(const int aOpt, const char *aArg)
@@ -49,6 +52,10 @@ static int parse(const int aOpt, const char *aArg)
 	case 'f':
 		logDebug(_("Changing mode to use force authorization\n"));
 		bValue = TRUE;
+		break;
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
 		break;
 	default:
 		return -1;
@@ -66,13 +73,16 @@ int main(int argc, char **argv)
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
 	int iRc = -1;
-	struct option opts[] = { {"force", no_argument, NULL, 'f'}
+	struct option opts[] = {
+			{"force", no_argument, NULL, 'f'},
+			{"well-known", no_argument, NULL, 'z'},
 	};
+	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "f", opts, sizeof(opts) / sizeof(struct option),
+	    (argc, argv, "fz", opts, sizeof(opts) / sizeof(struct option),
 	     parse, help) != 0)
 		goto out;
 
@@ -86,11 +96,15 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	if (!bValue) {
-		//Prompt for owner password
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-		if (!szTpmPasswd) {
-			logError(_("Failed to get owner password\n"));
-			goto out_close;
+		if (isWellKnown){
+			szTpmPasswd = (char *)well_known;
+			pswd_len = sizeof(well_known);
+		}else{
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
 		}
 
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
@@ -112,7 +126,7 @@ int main(int argc, char **argv)
 
 	//Cleanup
       out_close:
-	if (szTpmPasswd)
+	if (szTpmPasswd && !isWellKnown)
 		shredPasswd(szTpmPasswd);
 
 	contextClose(hContext);

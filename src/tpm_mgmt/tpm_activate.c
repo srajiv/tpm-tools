@@ -30,6 +30,7 @@
 #define TEMP_DEACTIVATE 3
 
 static int request = STATUS_CHECK;
+static BOOL isWellKnown = FALSE;
 
 static void help(const char *aCmd)
 {
@@ -40,6 +41,8 @@ static void help(const char *aCmd)
 	logCmdOption("-i, --inactive", _("Deactivate TPM, requires reboot"));
 	logCmdOption("-t, --temp",
 		     _("Change state immediately but only for this boot.\n\t\tOnly valid in conjunction with the inactive parameter."));
+	logCmdOption("-z, --well-known",
+		     _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data"));
 }
 
 static int parse(const int aOpt, const char *aArg)
@@ -61,6 +64,10 @@ static int parse(const int aOpt, const char *aArg)
 	case 't':
 		logDebug(_("Changing mode to temporarily deactivate the TPM\n"));
 		request = TEMP_DEACTIVATE;
+		break;
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
 		break;
 
 	default:
@@ -88,12 +95,14 @@ int main(int argc, char **argv)
 	{"inactive", no_argument, NULL, 'i'},
 	{"temp", no_argument, NULL, 't'},
 	{"status", no_argument, NULL, 's'},
+	{"well-known", no_argument, NULL, 'z'},
 	};
+	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "aits", opts,
+	    (argc, argv, "aitsz", opts,
 	     sizeof(opts) / sizeof(struct option), parse, help) != 0)
 		goto out;
 
@@ -109,11 +118,17 @@ int main(int argc, char **argv)
 	switch(request) {
 	case STATUS_CHECK:
 		logInfo(_("Checking status:\n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, FALSE);
-		if (!szTpmPasswd) {
-			logMsg(_("Failed to get password\n"));
-			goto out_close;
+		if (isWellKnown){
+			szTpmPasswd = (char *)well_known;
+			tpm_len = sizeof(well_known);
+		} else {
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
 		}
+
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
 
@@ -155,7 +170,7 @@ int main(int argc, char **argv)
 	logSuccess(argv[0]);
 	//Cleanup
       out_close:
-	if (szTpmPasswd)
+	if (szTpmPasswd && !isWellKnown)
 		shredPasswd(szTpmPasswd);
 
 	contextClose(hContext);

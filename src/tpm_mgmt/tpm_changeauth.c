@@ -19,6 +19,7 @@
  * http://www.opensource.org/licenses/cpl1.0.php.
  */
 
+#include <stdio.h>
 #include "tpm_utils.h"
 #include "tpm_tspi.h"
 
@@ -27,6 +28,12 @@ struct changeAuth {
 	char *prompt;
 	BOOL change;
 };
+
+static BOOL changeRequested = FALSE;
+static BOOL origUnicode = FALSE;
+static BOOL newUnicode = FALSE;
+static BOOL wellKnown = FALSE;
+static BOOL setWellKnown = FALSE;
 
 //Order important so you authenticate once even if both changed with one command
 enum {
@@ -39,7 +46,6 @@ static struct changeAuth auths[] = {
 		{N_("owner"), N_("Enter new owner password: "), FALSE},
 		{NULL, NULL, FALSE },
 	};
-static BOOL changeRequested = FALSE;
 
 static void help(const char *aCmd)
 {
@@ -49,10 +55,9 @@ static void help(const char *aCmd)
 	logCmdOption("-s, --srk", _("Change the SRK password."));
 	logCmdOption("-g, --original_password_unicode", _("Use TSS UNICODE encoding for original password to comply with applications using TSS popup boxes"));
 	logCmdOption("-n, --new_password_unicode", _("Use TSS UNICODE encoding for new password to comply with applications using TSS popup boxes"));
+	logCmdOption("-z, --well-known", _("Change password to a new one when current owner password is a secret of all zeros (20 bytes of zeros). It must be specified which password (owner, SRK or both) to change"));
+	logCmdOption("-r, --set-well-known", _("Change password to a secret of all zeros (20 bytes of zeros). It must be specified which password (owner, SRK or both) to change"));
 }
-
-static BOOL origUnicode = FALSE;
-static BOOL newUnicode = FALSE;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -72,6 +77,12 @@ static int parse(const int aOpt, const char *aArg)
 		break;
 	case 'n':
 		newUnicode = TRUE;
+		break;
+	case 'z':
+		wellKnown = TRUE;
+		break;
+	case 'r':
+		setWellKnown = TRUE;
 		break;
 	default:
 		return -1;
@@ -93,7 +104,7 @@ tpmChangeAuth(TSS_HCONTEXT aObjToChange,
 /*
  * Affect: Change owner or srk password
  * Default: No action
- * Required: Owner auth
+ * Required: Owner authentication
  */
 int main(int argc, char **argv)
 {
@@ -105,23 +116,28 @@ int main(int argc, char **argv)
 	TSS_HPOLICY hTpmPolicy, hNewPolicy;
 	TSS_HTPM hTpm;
 	TSS_HTPM hSrk;
+	BYTE well_known_secret[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 	struct option opts[] = { {"owner", no_argument, NULL, 'o'},
 	{"srk", no_argument, NULL, 's'},
 	{"original_password_unicode", no_argument, NULL, 'g'},
 	{"new_password_unicode", no_argument, NULL, 'n'},
+	{"well-known", no_argument, NULL, 'z'},
+	{"set-well-known", no_argument, NULL, 'r'},
 	};
 
-        initIntlSys();
+	initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "sogn", opts, sizeof(opts) / sizeof(struct option),
+	    (argc, argv, "zrsogn", opts, sizeof(opts) / sizeof(struct option),
 	     parse, help) != 0)
 		goto out;
 
-	if (!changeRequested) {	//nothing selected
+	//nothing selected
+	if ((!changeRequested && wellKnown) || (!changeRequested)) {
 		help(argv[0]);
 		goto out;
 	}
+
 	//Connect to TSS and TPM
 	if (contextCreate(&hContext) != TSS_SUCCESS)
 		goto out;
@@ -132,28 +148,42 @@ int main(int argc, char **argv)
 	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
 		goto out_close;
 
-	//Prompt for owner password
-	passwd = _getPasswd(_("Enter owner password: "), &pswd_len, FALSE, origUnicode || useUnicode );
-	if (!passwd) {
-		logError(_("Failed to get owner password\n"));
-		goto out_close;
+	if (wellKnown) {
+		passwd = (char *)well_known_secret;
+		pswd_len = TPM_SHA1_160_HASH_LEN;
+	} else {
+		passwd = _getPasswd(_("Enter owner password: "), &pswd_len,
+			FALSE, origUnicode || useUnicode );
+		if (!passwd) {
+			logError(_("Failed to get owner password\n"));
+			goto out_close;
+		}
 	}
+
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
-	if (policySetSecret
-	    (hTpmPolicy, pswd_len, (BYTE *)passwd) != TSS_SUCCESS)
+
+	if (policySetSecret(hTpmPolicy, pswd_len, (BYTE *)passwd) != TSS_SUCCESS)
 		goto out_close;
 
-	shredPasswd(passwd);
-	passwd = NULL;
+	if (!wellKnown && !setWellKnown) {
+		shredPasswd(passwd);
+		passwd = NULL;
+	}
 
 	do {
 		if (auths[i].change) {
 			logInfo(_("Changing password for: %s.\n"), _(auths[i].name));
-			passwd = _getPasswd(_(auths[i].prompt), &pswd_len, TRUE, newUnicode || useUnicode );
-			if (!passwd) {
-				logError(_("Failed to get new password.\n"));
-				goto out_close;
+			if (setWellKnown) {
+				passwd = (char *)well_known_secret;
+				pswd_len = TPM_SHA1_160_HASH_LEN;
+			} else {
+				passwd = _getPasswd(_(auths[i].prompt), &pswd_len,
+					TRUE, newUnicode || useUnicode );
+				if (!passwd) {
+					logError(_("Failed to get new password.\n"));
+					goto out_close;
+				}
 			}
 
 			if (contextCreateObject
@@ -167,35 +197,32 @@ int main(int argc, char **argv)
 				goto out_close;
 
 			if (i == owner) {
-				if (tpmChangeAuth
-				    (hTpm, NULL_HOBJECT, hNewPolicy)
-				    != TSS_SUCCESS)
+				if (tpmChangeAuth(hTpm, NULL_HOBJECT, hNewPolicy) != TSS_SUCCESS)
 					goto out_close;
 			} else if (i == srk) {
 				if (keyLoadKeyByUUID
 				    (hContext, TSS_PS_TYPE_SYSTEM,
 				     SRK_UUID, &hSrk) != TSS_SUCCESS)
 					goto out_close;
-				if (tpmChangeAuth
-				    (hSrk, hTpm,
-				     hNewPolicy) != TSS_SUCCESS)
+				if (tpmChangeAuth(hSrk, hTpm, hNewPolicy) != TSS_SUCCESS)
 					goto out_close;
 			}
-			logInfo(_("Change of %s password successful.\n"),
-			       _(auths[i].name));
-			shredPasswd(passwd);
-			passwd = NULL;
+			logInfo(_("Change of %s password successful.\n"), _(auths[i].name));
+			if (!wellKnown && !setWellKnown) {
+				shredPasswd(passwd);
+				passwd = NULL;
+			}
 		}
-	}
-	while (auths[++i].name);
+	} while (auths[++i].name);
 
 	iRc = 0;
 
+	out_close:
+		contextClose(hContext);
 
-      out_close:
-	contextClose(hContext);
-      out:
-	if (passwd)
-		shredPasswd(passwd);
+	out:
+		if (passwd && !wellKnown && !setWellKnown)
+			shredPasswd(passwd);
+
 	return iRc;
 }

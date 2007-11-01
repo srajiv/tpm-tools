@@ -59,6 +59,8 @@ static BOOL bCheck = FALSE;
 static BOOL bChangeRequested = FALSE;
 static BOOL bYes = FALSE;
 static TSS_BOOL bValue;
+static BOOL isWellKnown = FALSE;
+static BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
 
 static void help(const char *aCmd)
@@ -83,6 +85,8 @@ static void help(const char *aCmd)
 		     _("Prevent further modification of TPM Physical Presence\n\t\tCommand and Hardware Enablement states.\n\t\tTHIS ACTION IS PERMANENT AND CAN NEVER BE UNDONE."));
 	logCmdOption("-y, --yes",
 		     _("Automatically respond yes to all prompts.  Only use\n\t\tthis if you are sure of the current state and don't want\n\t\tany textra checking done before setting the lifetime lock"));
+	logCmdOption("-z, --well-known",
+		     _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data."));
 }
 
 static int parse(const int aOpt, const char *aArg)
@@ -128,7 +132,7 @@ static int parse(const int aOpt, const char *aArg)
 		flags[hwdEnable].value = TRUE;
 		bChangeRequested = TRUE;
 		break;
-	case 'w':
+	case 'h':
 		logDebug(_("Changing mode to disable hardware presence.\n"));
 		flags[hwdEnable].change = TRUE;
 		flags[hwdEnable].value = FALSE;
@@ -143,6 +147,10 @@ static int parse(const int aOpt, const char *aArg)
 	case 'y':
 		logDebug(_("Changing mode to automatically answer yes.\n"));
 		bYes = TRUE;
+		break;
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
 		break;
 	default:
 		return -1;
@@ -171,9 +179,17 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 		    (_("Unable to determine current state without authorization\n"));
 		if (isTpmOwned(hContext)) {
 			logDebug(_("TPM is owned\n"));
-			pwd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-			if (!pwd)
-				goto warn;
+			if (isWellKnown) {
+				pwd = (char *)well_known;
+				pswd_len = sizeof(well_known);
+			} else {
+				// Prompt for owner password
+				pwd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+				if (!pwd) {
+					logMsg(_("Failed to get password\n"));
+					goto warn;
+				}
+			}
 
 			if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 				goto warn;
@@ -225,7 +241,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	if (hTpmPolicy)
 		policyFlushSecret(hTpmPolicy);
 
-	if (pwd)
+	if (pwd && !isWellKnown)
 		shredPasswd(pwd);
 
 	return bRc;
@@ -242,7 +258,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 int main(int argc, char **argv)
 {
 
-	char *szTpmPasswd;
+	char *szTpmPasswd = NULL;
 	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
@@ -258,13 +274,14 @@ int main(int argc, char **argv)
 	{"enable-hw", no_argument, NULL, 'e'},
 	{"disable-hw", no_argument, NULL, 'w'},
 	{"set-lifetime-lock", no_argument, NULL, 't'},
-	{"yes", no_argument, NULL, 'y'}
+	{"yes", no_argument, NULL, 'y'},
+	{"well-known", no_argument, NULL, 'z'},
 	};
 
 	initIntlSys();
 
 	if (genericOptHandler
-	    (argc, argv, "acsy", opts,
+	    (argc, argv, "acsyz", opts,
 	     sizeof(opts) / sizeof(struct option), parse, help) != 0)
 		goto out;
 
@@ -280,10 +297,16 @@ int main(int argc, char **argv)
 
 	if (bCheck || !bChangeRequested) {
 		logInfo(_("Checking current status: \n"));
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-		if (!szTpmPasswd) {
-			logError(_("Failed to get owner password\n"));
-			goto out_close;
+		if (isWellKnown) {
+			szTpmPasswd = (char *)well_known;
+			pswd_len = sizeof(well_known);
+		} else {
+			// Prompt for owner password
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
 		}
 
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
@@ -332,5 +355,7 @@ int main(int argc, char **argv)
       out_close:
 	contextClose(hContext);
       out:
+    if (szTpmPasswd && !isWellKnown)
+	shredPasswd( szTpmPasswd );
 	return iRc;
 }

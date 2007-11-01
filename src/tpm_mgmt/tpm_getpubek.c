@@ -22,10 +22,27 @@
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
 
+static BOOL isWellKnown = FALSE;
+
+static int parse(const int aOpt, const char *aArg)
+{
+
+	switch (aOpt) {
+	case 'z':
+		logDebug(_("Using TSS_WELL_KNOWN_SECRET to authorize the TPM command\n"));
+		isWellKnown = TRUE;
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
 static void help(const char* aCmd)
 {
 	logCmdHelp(aCmd);
 	logUnicodeCmdOption();
+	logCmdOption("-z, --well-known",
+		     _("Use 20 bytes of zeros (TSS_WELL_KNOWN_SECRET) as the TPM secret authorization data"));
 }
 
 int main(int argc, char **argv)
@@ -39,10 +56,16 @@ int main(int argc, char **argv)
 	TSS_HKEY hEk;
 	TSS_HPOLICY hTpmPolicy;
 	int iRc = -1;
+	struct option hOpts[] = {
+			{"well-known", no_argument, NULL, 'z'},
+	};
+	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
-	if (genericOptHandler(argc, argv, NULL, NULL, 0, NULL, help) != 0)
+	if (genericOptHandler
+		    (argc, argv, "z", hOpts,
+		     sizeof(hOpts) / sizeof(struct option), parse, help) != 0)
 		goto out;
 
 	if (contextCreate(&hContext) != TSS_SUCCESS)
@@ -58,10 +81,17 @@ int main(int argc, char **argv)
 	if (tResult == TCPA_E_DISABLED_CMD) {
 		logInfo
 		    (_("Public PubEk access blocked, owner password required\n"));
-		// Prompt for owner password
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
-		if (!szTpmPasswd)
-			goto out_close;
+		if (isWellKnown) {
+			szTpmPasswd = (char *)well_known;
+			pswd_len = sizeof(well_known);
+		} else {
+			// Prompt for owner password
+			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			if (!szTpmPasswd) {
+				logMsg(_("Failed to get password\n"));
+				goto out_close;
+			}
+		}
 
 		if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 			goto out_close;
@@ -87,7 +117,7 @@ int main(int argc, char **argv)
 	contextClose(hContext);
 
       out:
-	if (szTpmPasswd)
+	if (szTpmPasswd && !isWellKnown)
 		shredPasswd(szTpmPasswd);
 
 	return iRc;
