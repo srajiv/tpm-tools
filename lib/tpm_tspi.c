@@ -392,9 +392,18 @@ TSS_RESULT
 policySetSecret(TSS_HPOLICY a_hPolicy,
 		UINT32 a_uiSecretLen, BYTE * a_chSecret)
 {
-	TSS_RESULT result =
-	    Tspi_Policy_SetSecret(a_hPolicy, TSS_SECRET_MODE_PLAIN,
-				  a_uiSecretLen, a_chSecret);
+	TSS_RESULT result;
+	BYTE wellKnown[] = TSS_WELL_KNOWN_SECRET;
+
+	//If secret is TSS_WELL_KNOWN_SECRET, change secret mode to TSS_SECRET_MODE_SHA1
+	if (!memcmp(a_chSecret, (BYTE *)wellKnown, sizeof(wellKnown)))
+		result =
+			Tspi_Policy_SetSecret(a_hPolicy, TSS_SECRET_MODE_SHA1,
+					a_uiSecretLen, a_chSecret);
+	else
+		result =
+			Tspi_Policy_SetSecret(a_hPolicy, TSS_SECRET_MODE_PLAIN,
+					a_uiSecretLen, a_chSecret);
 	tspiResult("Tspi_Policy_SetSecret", result);
 
 	return result;
