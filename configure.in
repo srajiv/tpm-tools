@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-AC_INIT(tpm-tools, 1.2.5.1, trousers-tech@lists.sf.net)
+AC_INIT(tpm-tools, 1.3, trousers-tech@lists.sf.net)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CANONICAL_TARGET
 
@@ -58,6 +58,14 @@ AC_ARG_WITH(openssl,
 	    AC_SUBST([OPENSSL_LIB_DIR], []) ] )
 
 AC_CHECK_LIB(tspi, Tspi_Context_Create, [TSS_LIB="1"], [AC_MSG_ERROR([tss lib not found: libtspi.so])])
+AC_CHECK_LIB(tspi, Tspi_TPM_SetOperatorAuth, [TSS_12="1"], [TSS_12="0"])
+if test "$TSS_12" = "1"; then
+	AM_CONDITIONAL(TSS_LIB_IS_12, true)
+	AC_MSG_NOTICE([Configuring tpm-tools for TSS 1.2])
+else
+	AM_CONDITIONAL(TSS_LIB_IS_12, false)
+	AC_MSG_NOTICE([Configuring tpm-tools for TSS 1.1])
+fi
 AC_CHECK_HEADER(trousers/tss.h, [TSS_INC="1"], [AC_MSG_ERROR([tss header not found: trousers/tss.h])])
 
 AC_CHECK_LIB(crypto, PEM_read_X509, [OPENSSL_LIB="1"], [AC_MSG_ERROR([openssl lib not found: libcrypto.so])])
