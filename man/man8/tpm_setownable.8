@@ -55,7 +55,10 @@ Report the status of flags regarding if the TPM can be owned.
 Allow tpm_takeownership operations. 
 .TP
 \fB-p\fR, \fB\-\-prevent\fR
-Prevent tpm_takeownership operations. 
+Prevent tpm_takeownership operations.
+.TP
+\fB-z\fR, \fB\-\-well-known\fR
+Authenticate using 20 bytes of zeros as owner password (the default TSS Well Known Secret), instead of prompting for an owner password. 
 
 .SH "SEE ALSO"
 .PP

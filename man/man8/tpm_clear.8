@@ -51,6 +51,9 @@ Use TSS UNICODE encoding for passwords to comply with applications using TSS pop
 .TP
 \fB-f\fR, \fB\-\-force\fR
 Rely on Physical Presence for authorization; therefore, do not prompt for owner password.
+.TP
+\fB-z\fR, \fB\-\-well-known\fR
+Authenticate using 20 bytes of zeros as owner password (the default TSS Well Known Secret), instead of prompting for an owner password.
 
 .SH "SEE ALSO"
 .PP

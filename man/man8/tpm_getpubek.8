@@ -32,7 +32,7 @@ tpm_getpubek \- display the public portion of the TPM's Endorsement Key
 .SH "DESCRIPTION"
 .PP
 \fBtpm_getpubek\fR requests the TPM's public portion of the Endorsement Key  
-(via the TPM_ReadPubek API).  This operation can be restricted to require owner authorization, in that case the command will prompt for the owner password and request the data (via the TPM_OwnerReadPubek API). The key information is output on a sucessful call.
+(via the TPM_ReadPubek API).  This operation can be restricted to require owner authorization, in that case the command will prompt for the owner password and request the data. The key information is output on a successful call.
 
 .TP
 \fB\-h\fR, \fB\-\-help\fR
@@ -46,6 +46,9 @@ Set logging level.
 .TP
 \fB-u\fR, \fB\-\-unicode\fR
 Use TSS UNICODE encoding for passwords to comply with applications using TSS popup boxes
+.TP
+\fB-z\fR, \fB\-\-well-known\fR
+Authenticate using 20 bytes of zeros as owner password (the default TSS Well Known Secret), instead of prompting for an owner password.
 
 .SH "SEE ALSO"
 .PP

@@ -59,6 +59,9 @@ Make the TPM disabled.   Operation is persistent and prompts for owner authoriza
 .TP
 \fB-f\fR, \fB\-\-force\fR
 Overrides the prompt for owner authorization and uses physical presence to authorize the action.
+.TP
+\fB-z\fR, \fB\-\-well-known\fR
+Authenticate using 20 bytes of zeros as owner password (the default TSS Well Known Secret), instead of prompting for an owner password.
 
 .SH "SEE ALSO"
 .PP

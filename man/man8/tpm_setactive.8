@@ -20,7 +20,7 @@
 ..
 .TH "tpm_setactive" 8 "2005-05-06"  "TPM Management"
 .ce 1
-TPM Management - tpm_setactive 
+TPM Management - tpm_setactive
 .SH NAME
 tpm_setactive \- change TPM active states 
 .SH "SYNOPSIS"
@@ -59,6 +59,9 @@ Make the TPM inactive.   Operation is persistent, requires phyiscal presence to 
 .TP
 \fB-t\fR, \fB\-\-temp\fR
 Makes the TPM inactive for the current boot cycle only. 
+.TP
+\fB-z\fR, \fB\-\-well-known\fR
+Authenticate using 20 bytes of zeros as owner password (the default TSS Well Known Secret), instead of prompting for an owner password.
 
 .SH "SEE ALSO"
 .PP

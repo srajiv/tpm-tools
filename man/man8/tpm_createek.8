@@ -44,6 +44,22 @@ Display command version info.
 \fB-l\fR, \fB\-\-log\fR [none|error|info|debug]
 Set logging level.
 
+.SH "OPTIONS VALID ONLY FOR TPM VERSION 1.2"
+.PP
+.TP
+\fB-r\fR, \fB\-\-revocable\fR
+Creates a \fBrevocable\fR key pair instead of non-revocable one. Requires secret data (either \fB-g\fR \fB-o\fR or \fB-i\fR - see below).
+\.TP
+\fB-i\fR, \fB\-\-infile\fR [input file]
+Specifies the file that contains the secret data used as revoke data do the new revocable EK pair. Only the first 20 bytes of this file  are used
+and the remaining ones are ignored.
+\.TP
+\fB-g\fR, \fB\-\-generate-secret\fR
+Generates a random 20 bytes value that is used as the EK pair revocable secret data. Requires \fB-o\fR (see below).
+\.TP
+\fB-o\fR, \fB\-\-outfile\fR [output file]
+Specifies the file to write the generated revocable secret data to, for further use. 
+
 .SH "SEE ALSO"
 .PP
 \fBtpm_version\fR(1), \fBtpm_getpubek\fR(8), \fBtcsd\fR(8)
