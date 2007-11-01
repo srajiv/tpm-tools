@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-man8_MANS = 	tpm_changeownerauth.8	\
+man8_MANS =	tpm_changeownerauth.8	\
 		tpm_clear.8		\
 		tpm_createek.8		\
 		tpm_getpubek.8		\
@@ -32,6 +32,10 @@ man8_MANS = 	tpm_changeownerauth.8	\
 		tpm_setenable.8		\
 		tpm_setownable.8	\
 		tpm_setpresence.8	\
-		tpm_takeownership.8	
+		tpm_takeownership.8
+
+if TSS_LIB_IS_12
+man8_MANS+=tpm_revokeek.8 tpm_setoperatorauth.8 tpm_resetdalock.8
+endif
 
 EXTRA_DIST = $(man8_MANS)
