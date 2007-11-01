@@ -43,6 +43,8 @@ int logHex(int a_iLen, void *a_pData)
 		logMsg("%02x", iByte);
 	}
 
+	logMsg("\n");
+
 	return a_iLen;
 }
 
