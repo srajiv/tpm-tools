@@ -111,8 +111,8 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	if (ownerWellKnown) {
-		srk_len = TPM_SHA1_160_HASH_LEN;
-		if (policySetSecret(hSrkPolicy, srk_len, well_known_secret) != TSS_SUCCESS)
+		tpm_len = TPM_SHA1_160_HASH_LEN;
+		if (policySetSecret(hTpmPolicy, tpm_len, well_known_secret) != TSS_SUCCESS)
 			goto out_obj_close;
 	} else {
 		if (policySetSecret(hTpmPolicy, tpm_len, (BYTE *)szTpmPasswd) != TSS_SUCCESS)
