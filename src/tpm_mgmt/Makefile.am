@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-noinst_PROGRAMS = 	tpm_startup	\
+noinst_PROGRAMS =	tpm_startup	\
 			tpm_reset
 
 sbin_PROGRAMS	=	tpm_changeownerauth \
@@ -30,7 +30,7 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 			tpm_getpubek    \
 			tpm_restrictpubek \
 			tpm_setactive	\
-			tpm_setenable 	\
+			tpm_setenable	\
 			tpm_setclearable \
 			tpm_setownable	\
 			tpm_setpresence	\
@@ -38,18 +38,23 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 			tpm_version	\
 			tpm_selftest
 
+if TSS_LIB_IS_12
+sbin_PROGRAMS  += tpm_revokeek tpm_setoperatorauth tpm_resetdalock
+AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX -DTSS_LIB_IS_12
+else
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
+endif
 
 LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi
 
-tpm_startup_SOURCES = 		tpm_startup.c
-tpm_reset_SOURCES = 		tpm_reset.c
+tpm_startup_SOURCES =		tpm_startup.c
+tpm_reset_SOURCES =		tpm_reset.c
 
 tpm_changeownerauth_SOURCES =	tpm_changeauth.c
 tpm_clear_SOURCES	=	tpm_clear.c
-tpm_createek_SOURCES	= 	tpm_createek.c
+tpm_createek_SOURCES	=	tpm_createek.c
 tpm_getpubek_SOURCES	=	tpm_getpubek.c
-tpm_restrictpubek_SOURCES = 	tpm_restrictpubek.c
+tpm_restrictpubek_SOURCES =	tpm_restrictpubek.c
 tpm_setactive_SOURCES	=	tpm_activate.c
 tpm_setclearable_SOURCES =	tpm_clearable.c
 tpm_setenable_SOURCES	=	tpm_enable.c
@@ -58,3 +63,7 @@ tpm_setpresence_SOURCES =	tpm_present.c
 tpm_takeownership_SOURCES =	tpm_takeownership.c
 tpm_version_SOURCES	=	tpm_version.c
 tpm_selftest_SOURCES	=	tpm_selftest.c
+tpm_revokeek_SOURCES	=	tpm_revokeek.c
+tpm_setoperatorauth_SOURCES =   tpm_setoperatorauth.c
+tpm_resetdalock_SOURCES =       tpm_resetdalock.c
+
