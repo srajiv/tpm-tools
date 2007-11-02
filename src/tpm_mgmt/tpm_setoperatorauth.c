@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 
 	int iRc = -1;
 	char *passwd = NULL;
-	UINT32 pswd_len;
+	int pswd_len;
 	TSS_HCONTEXT hContext;
 	TSS_HPOLICY hNewPolicy;
 	TSS_HTPM hTpm;
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 			&hNewPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hNewPolicy, pswd_len, (BYTE *)passwd) != TSS_SUCCESS)
+	if (policySetSecret(hNewPolicy, (UINT32)pswd_len, (BYTE *)passwd) != TSS_SUCCESS)
 		goto out_close;
 
 	if (!isWellKnown)
