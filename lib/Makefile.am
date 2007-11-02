@@ -32,6 +32,10 @@ noinst_LTLIBRARIES	=	libtpm_tspi.la	\
 # Common build flags (with gettext support)
 AM_CPPFLAGS		=	-I$(top_builddir)/include -D_LINUX -DLOCALEDIR=\"$(localedir)\"
 
+if TSS_LIB_IS_12
+AM_CPPFLAGS		+=	-DTSS_LIB_IS_12
+endif
+
 #
 # Utility library
 libtpm_utils_la_SOURCES	=	tpm_utils.c \
