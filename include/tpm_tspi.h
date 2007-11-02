@@ -113,6 +113,8 @@ TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey,
 TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
 			UINT32 a_len, BYTE * a_data,
 			TSS_HPCRS a_hPcrs);
-
+#ifdef TSS_LIB_IS_12
+TSS_RESULT unloadVersionInfo(UINT64 *offset, BYTE *blob, TPM_CAP_VERSION_INFO *v);
+#endif
 
 #endif

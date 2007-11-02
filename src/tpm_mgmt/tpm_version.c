@@ -42,12 +42,51 @@ int cmdVersion(const char *a_szCmd)
 	if (contextGetTpm(hContext, &hTpm) != TSS_SUCCESS)
 		goto out_close;
 
+#ifdef TSS_LIB_IS_12
+	{
+		UINT64 offset;
+		TSS_RESULT uiResult;
+		TPM_CAP_VERSION_INFO versionInfo;
+
+		if ((uiResult = getCapability(hTpm, TSS_TPMCAP_VERSION_VAL, 0, NULL, &uiResultLen,
+					      &pResult)) != TSS_SUCCESS) {
+			if (uiResult == TPM_E_BAD_MODE)
+				goto print_cap_version;
+			else
+				goto out_close;
+		}
+
+		offset = 0;
+		if ((uiResult = unloadVersionInfo(&offset, pResult, &versionInfo))) {
+			goto out_close;
+		}
+
+		logMsg(_("  TPM 1.2 Version Info:\n"));
+		logMsg(_("  Chip Version:        %hhu.%hhu.%hhu.%hhu\n"),
+		       versionInfo.version.major, versionInfo.version.minor,
+		       versionInfo.version.revMajor, versionInfo.version.revMinor);
+		logMsg(_("  Spec Level:          %hu\n"), versionInfo.specLevel);
+		logMsg(_("  Errata Revision:     %hhu\n"), versionInfo.errataRev);
+		//logMsg(_("  TPM Vendor ID: %hhu%hhu%hhu%hhu\n"),
+		logMsg(_("  TPM Vendor ID:       %c%c%c%c\n"),
+		       versionInfo.tpmVendorID[0], versionInfo.tpmVendorID[1],
+		       versionInfo.tpmVendorID[2], versionInfo.tpmVendorID[3]);
+
+		if (versionInfo.vendorSpecificSize) {
+			logMsg(_("  Vendor Specific data: "));
+			logHex(versionInfo.vendorSpecificSize, versionInfo.vendorSpecific);
+
+			free(versionInfo.vendorSpecific);
+		}
+	}
+
+print_cap_version:
+#endif
 	if (getCapability(hTpm, TSS_TPMCAP_VERSION, 0, NULL, &uiResultLen,
 			  &pResult) != TSS_SUCCESS)
 		goto out_close;
 	logMsg(_("  TPM Version:         "));
 	logHex(uiResultLen, pResult);
-	logMsg("\n");
 
 	uiSubCap = TSS_TPMCAP_PROP_MANUFACTURER;
 	pSubCap = (BYTE *) & uiSubCap;
@@ -56,7 +95,6 @@ int cmdVersion(const char *a_szCmd)
 		goto out_close;
 	logMsg(_("  Manufacturer Info:   "));
 	logHex(uiResultLen, pResult);
-	logMsg("\n");
 
 	iRc = 0;
 	logSuccess(a_szCmd);

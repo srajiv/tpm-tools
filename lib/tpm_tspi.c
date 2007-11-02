@@ -187,7 +187,6 @@ TSS_RESULT displayKey(TSS_HKEY a_hKey)
 		return result;
 	logMsg(_("  Version:   "));
 	logHex(uiAttrSize, pAttr);
-	logMsg("\n");
 
 	result =
 	    getAttribUint32(a_hKey, TSS_TSPATTRIB_KEY_INFO,
@@ -249,7 +248,6 @@ TSS_RESULT displayKey(TSS_HKEY a_hKey)
 		return result;
 	logMsg(_("  Public Key:"));
 	logHex(uiAttrSize, pAttr);
-	logMsg("\n");
 
 	return result;
 }
@@ -571,4 +569,12 @@ TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
 	return result;
 }
 
-
+#ifdef TSS_LIB_IS_12
+TSS_RESULT
+unloadVersionInfo(UINT64 *offset, BYTE *blob, TPM_CAP_VERSION_INFO *v)
+{
+	TSS_RESULT result = Trspi_UnloadBlob_CAP_VERSION_INFO(offset, blob, v);
+	tspiResult("Trspi_UnloadBlob_CAP_VERSION_INFO", result);
+	return result;
+}
+#endif
