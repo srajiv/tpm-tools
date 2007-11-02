@@ -69,7 +69,6 @@ int cmdSelfTest(const char *a_szCmd)
 		goto out_close;
 	logMsg(_("  TPM Test Results: "));
 	logHex(uiResultLen, pResult);
-	logMsg("\n");
 
 	iRc = 0;
 	logSuccess(a_szCmd);
