@@ -47,14 +47,20 @@ int cmdVersion(const char *a_szCmd)
 		UINT64 offset;
 		TSS_RESULT uiResult;
 		TPM_CAP_VERSION_INFO versionInfo;
+		int tmpLogLevel = iLogLevel;
+
+		/* disable logging during this call. If we're on a 1.1 TPM, it'd throw an error */
+		iLogLevel = LOG_LEVEL_NONE;
 
 		if ((uiResult = getCapability(hTpm, TSS_TPMCAP_VERSION_VAL, 0, NULL, &uiResultLen,
 					      &pResult)) != TSS_SUCCESS) {
+			iLogLevel = tmpLogLevel;
 			if (uiResult == TPM_E_BAD_MODE)
 				goto print_cap_version;
 			else
 				goto out_close;
 		}
+		iLogLevel = tmpLogLevel;
 
 		offset = 0;
 		if ((uiResult = unloadVersionInfo(&offset, pResult, &versionInfo))) {
@@ -67,7 +73,6 @@ int cmdVersion(const char *a_szCmd)
 		       versionInfo.version.revMajor, versionInfo.version.revMinor);
 		logMsg(_("  Spec Level:          %hu\n"), versionInfo.specLevel);
 		logMsg(_("  Errata Revision:     %hhu\n"), versionInfo.errataRev);
-		//logMsg(_("  TPM Vendor ID: %hhu%hhu%hhu%hhu\n"),
 		logMsg(_("  TPM Vendor ID:       %c%c%c%c\n"),
 		       versionInfo.tpmVendorID[0], versionInfo.tpmVendorID[1],
 		       versionInfo.tpmVendorID[2], versionInfo.tpmVendorID[3]);
