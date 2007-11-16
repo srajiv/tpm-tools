@@ -39,7 +39,7 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 			tpm_selftest
 
 if TSS_LIB_IS_12
-sbin_PROGRAMS  += tpm_revokeek tpm_setoperatorauth tpm_resetdalock
+sbin_PROGRAMS  += tpm_revokeek tpm_setoperatorauth tpm_resetdalock tpm_restrictsrk
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX -DTSS_LIB_IS_12
 else
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
@@ -66,4 +66,5 @@ tpm_selftest_SOURCES	=	tpm_selftest.c
 tpm_revokeek_SOURCES	=	tpm_revokeek.c
 tpm_setoperatorauth_SOURCES =   tpm_setoperatorauth.c
 tpm_resetdalock_SOURCES =       tpm_resetdalock.c
+tpm_restrictsrk_SOURCES =       tpm_restrictsrk.c
 
