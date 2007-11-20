@@ -142,7 +142,7 @@ openToken( char *a_pszTokenLabel ) {
 
 	CK_C_GetFunctionList  fGetFunctionList;
 
-	int  i;
+	unsigned int  i;
 
 	CK_RV          rv;
 	CK_ULONG       ulSlots;
