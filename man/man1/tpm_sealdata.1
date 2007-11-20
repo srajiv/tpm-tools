@@ -20,7 +20,7 @@
 ..
 .TH "tpm_sealdata" 1 "2005-08-10"  "TPM Management"
 .ce 1
-TPM Management - tpm_sealdata 
+TPM Management - tpm_sealdata
 .SH NAME
 tpm_sealdata \- seal input data to the system's TPM
 .SH "SYNOPSIS"
@@ -32,7 +32,7 @@ tpm_sealdata \- seal input data to the system's TPM
 .SH "DESCRIPTION"
 .PP
 \fBtpm_sealdata\fR seals sensitive input data to the SRK of the system's TPM
-and optionally a PCR configuration.  Backup your data, it is unrecoverable from this format if the SRK changes or the specified PCR configuration is unreproducable.  The result can be unsealed by functions in libtpm_unseal, this requires the SRK to not require authorization.
+and optionally a PCR configuration.  Backup your data, it is unrecoverable from this format if the SRK changes or the specified PCR configuration is unreproducable.  The result can be unsealed by functions in libtpm_unseal, such as \fBtpmUnsealFile\fR(3).
 
 .TP
 \fB\-h\fR, \fB\-\-help\fR
@@ -52,6 +52,12 @@ Output file.  Default is STDOUT.
 .TP
 \fB-p\fR, \fB\-\-pcr NUMBER\fR
 Seal data to the current value of the specified pcr. This option can be given NUM_PCRS times.  The specified pcr is in the range of 0 to NUM_PCRS-1. NUM_PCRS is at least 16 but may vary by platform.
+.TP
+\fB-z\fR, \fB\-\-well-known\fR
+Use TSS_WELL_KNOWN_SECRET (20 zero bytes) as the SRK password. You will not be prompted for the SRK password with this option.
+.TP
+\fB-u\fR, \fB\-\-unicode\fR
+Use TSS UNICODE encoding for the SRK password to comply with applications using TSS popup boxes.
 
 .SH "SEE ALSO"
 .PP
