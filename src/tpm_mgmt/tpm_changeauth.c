@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	TSS_HPOLICY hTpmPolicy, hNewPolicy;
 	TSS_HTPM hTpm;
 	TSS_HTPM hSrk;
-	BYTE well_known_secret[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
+	BYTE well_known_secret[] = TSS_WELL_KNOWN_SECRET;
 	struct option opts[] = { {"owner", no_argument, NULL, 'o'},
 	{"srk", no_argument, NULL, 's'},
 	{"original_password_unicode", no_argument, NULL, 'g'},
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 
 	if (wellKnown) {
 		passwd = (char *)well_known_secret;
-		pswd_len = TPM_SHA1_160_HASH_LEN;
+		pswd_len = TCPA_SHA1_160_HASH_LEN;
 	} else {
 		passwd = _getPasswd(_("Enter owner password: "), &pswd_len,
 			FALSE, origUnicode || useUnicode );
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
 			logInfo(_("Changing password for: %s.\n"), _(auths[i].name));
 			if (setWellKnown) {
 				passwd = (char *)well_known_secret;
-				pswd_len = TPM_SHA1_160_HASH_LEN;
+				pswd_len = TCPA_SHA1_160_HASH_LEN;
 			} else {
 				passwd = _getPasswd(_(auths[i].prompt), &pswd_len,
 					TRUE, newUnicode || useUnicode );

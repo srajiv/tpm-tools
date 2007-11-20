@@ -62,7 +62,7 @@ tpmRevokeEk(TSS_HTPM a_hTpm, UINT32 revDataSz, BYTE *revData)
 static int readData(UINT32 bytesToRead, BYTE **buffer)
 {
 	FILE *infile = NULL;
-	int iBytes;
+	size_t iBytes;
 	int rc = 0;
 	BYTE eofile;
 

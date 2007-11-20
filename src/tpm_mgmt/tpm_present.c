@@ -60,7 +60,7 @@ static BOOL bChangeRequested = FALSE;
 static BOOL bYes = FALSE;
 static TSS_BOOL bValue;
 static BOOL isWellKnown = FALSE;
-static BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
+static BYTE well_known[] = TSS_WELL_KNOWN_SECRET;
 
 
 static void help(const char *aCmd)

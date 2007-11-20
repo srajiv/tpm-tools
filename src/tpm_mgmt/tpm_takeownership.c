@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 	TSS_FLAG fSrkAttrs;
 	TSS_HPOLICY hTpmPolicy, hSrkPolicy;
 	int iRc = -1;
-	BYTE well_known_secret[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
+	BYTE well_known_secret[] = TSS_WELL_KNOWN_SECRET;
 	struct option opts[] = {
 	{"owner-well-known", no_argument, NULL, 'y'},
 	{"srk-well-known", no_argument, NULL, 'z'},
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 		goto out_close;
 
 	if (ownerWellKnown) {
-		tpm_len = TPM_SHA1_160_HASH_LEN;
+		tpm_len = TCPA_SHA1_160_HASH_LEN;
 		if (policySetSecret(hTpmPolicy, tpm_len, well_known_secret) != TSS_SUCCESS)
 			goto out_obj_close;
 	} else {
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 		goto out_obj_close;
 
 	if (srkWellKnown) {
-		srk_len = TPM_SHA1_160_HASH_LEN;
+		srk_len = TCPA_SHA1_160_HASH_LEN;
 		if (policySetSecret(hSrkPolicy, srk_len, well_known_secret) != TSS_SUCCESS)
 			goto out_obj_close;
 	} else {

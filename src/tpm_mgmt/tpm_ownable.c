@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	{"status", no_argument, NULL, 's'},
 	{"well-known", no_argument, NULL, 'z'},
 	};
-	BYTE well_known[TPM_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
+	BYTE well_known[] = TSS_WELL_KNOWN_SECRET;
 
         initIntlSys();
 
