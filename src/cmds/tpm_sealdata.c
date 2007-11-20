@@ -36,6 +36,8 @@ static void help(const char *aCmd)
 	logCmdOption("-p, --pcr NUMBER",
 		     _
 		     ("PCR to seal data to.  Default is none.  This option can be specified multiple times to choose more than one PCR."));
+	logCmdOption("-z, --well-known", _("Use TSS_WELL_KNOWN_SECRET as the SRK secret."));
+	logCmdOption("-u, --unicode", _("Use TSS UNICODE encoding for the SRK password to comply with applications using TSS popup boxes"));
 
 }
 
@@ -45,6 +47,8 @@ static TSS_HCONTEXT hContext;
 static TSS_HTPM hTpm;
 static UINT32 selectedPcrs[24];
 static UINT32 selectedPcrsLen = 0;
+static BOOL passUnicode = FALSE;
+static BOOL isWellKnown = FALSE;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -69,6 +73,16 @@ static int parse(const int aOpt, const char *aArg)
 			rc = 0;
 		}
 		break;
+	case 'u':
+		passUnicode = TRUE;
+		rc = 0;
+		break;
+	case 'z':
+		isWellKnown = TRUE;
+		rc = 0;
+		break;
+	default:
+		break;
 	}
 	return rc;
 
@@ -84,7 +98,9 @@ int main(int argc, char **argv)
 	struct option opts[] =
 	    { {"infile", required_argument, NULL, 'i'},
 	{"outfile", required_argument, NULL, 'o'},
-	{"pcr", required_argument, NULL, 'p'}
+	{"pcr", required_argument, NULL, 'p'},
+	{"unicode", no_argument, NULL, 'u'},
+	{"well-known", no_argument, NULL, 'z'}
 	};
 	unsigned char line[EVP_CIPHER_block_size(EVP_aes_256_cbc()) * 16];
 	int lineLen;
@@ -99,12 +115,15 @@ int main(int argc, char **argv)
 	    TSS_KEY_VOLATILE | TSS_KEY_AUTHORIZATION |
 	    TSS_KEY_NOT_MIGRATABLE;
 	TSS_HPOLICY hSrkPolicy;
+	char *passwd = NULL;
+	int pswd_len;
+	BYTE wellKnown[TCPA_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 
 	BIO *bin = NULL, *bdata=NULL, *b64=NULL;
 
 	initIntlSys();
 
-	if (genericOptHandler(argc, argv, "i:o:p:", opts,
+	if (genericOptHandler(argc, argv, "i:o:p:uz", opts,
 			      sizeof(opts) / sizeof(struct option), parse,
 			      help) != 0)
 		goto out;
@@ -192,8 +211,25 @@ int main(int argc, char **argv)
 	if (policyGet(hSrk, &hSrkPolicy) != TSS_SUCCESS)
 		goto out_close;
 
-	if (policySetSecret(hSrkPolicy, 0, NULL) != TSS_SUCCESS)
+	/* Prompt for SRK password */
+	if (!isWellKnown) {
+		passwd = _getPasswd(_("Enter SRK password: "), (int *)&pswd_len, FALSE,
+				    passUnicode);
+		if (!passwd) {
+			logError(_("Failed to get SRK password\n"));
+			goto out_close;
+		}
+	} else {
+		passwd = (char *)wellKnown;
+		pswd_len = sizeof(wellKnown);
+	}
+
+	if (policySetSecret(hSrkPolicy, (UINT32)pswd_len, (BYTE *)passwd) != TSS_SUCCESS)
 		goto out_close;
+
+	if (!isWellKnown)
+		shredPasswd(passwd);
+	passwd = NULL;
 
 	/* Build an RSA key object that will be created by the TPM
 	   (this will encrypt and protect the symmetric key) */
