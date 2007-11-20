@@ -91,6 +91,10 @@ int main(int argc, char **argv)
 	     parse, help) != 0)
 		goto out;
 
+	/* If no args are given, the default should be to give status */
+	if (argc == 1)
+		bCheck = TRUE;
+
 	//Connect to TSS and TPM
 	if (contextCreate(&hContext) != TSS_SUCCESS)
 		goto out;
@@ -114,6 +118,7 @@ int main(int argc, char **argv)
 	}
 	if (policyGet(hTpm, &hTpmPolicy) != TSS_SUCCESS)
 		goto out_close;
+
 	if (policySetSecret
 	    (hTpmPolicy, pswd_len, (BYTE *)szTpmPasswd) != TSS_SUCCESS)
 		goto out_close;
