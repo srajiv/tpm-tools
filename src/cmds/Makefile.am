@@ -23,7 +23,11 @@
 
 bin_PROGRAMS 	=	tpm_sealdata
 
+if TSS_LIB_IS_12
+AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX -DTSS_LIB_IS_12
+else
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
+endif
 
 LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi
 
