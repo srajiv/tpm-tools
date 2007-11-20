@@ -43,13 +43,12 @@ static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX] = "";
 static TSS_HPCRS hPcrs = NULL_HPCRS;
 static TSS_HCONTEXT hContext;
 static TSS_HTPM hTpm;
+static UINT32 selectedPcrs[24];
+static UINT32 selectedPcrsLen = 0;
 
 static int parse(const int aOpt, const char *aArg)
 {
 	int rc = -1;
-	UINT32 pcr_idx;
-	BYTE *pcr_idx_val;
-	UINT32 pcr_siz;
 
 	switch (aOpt) {
 	case 'i':
@@ -66,25 +65,7 @@ static int parse(const int aOpt, const char *aArg)
 		break;
 	case 'p':
 		if (aArg) {
-			if (hPcrs == NULL_HPCRS) {
-				if (Tspi_Context_CreateObject(hContext,
-							      TSS_OBJECT_TYPE_PCRS,
-							      0,
-							      &hPcrs) !=
-				    TSS_SUCCESS)
-					break;
-			}
-			pcr_idx = atoi(aArg);
-			if (Tspi_TPM_PcrRead(hTpm, pcr_idx, &pcr_siz,
-					     &pcr_idx_val) != TSS_SUCCESS)
-				break;
-
-			if (Tspi_PcrComposite_SetPcrValue(hPcrs, pcr_idx,
-							  pcr_siz,
-							  pcr_idx_val)
-			    != TSS_SUCCESS)
-				break;
-
+			selectedPcrs[selectedPcrsLen++] = atoi(aArg);
 			rc = 0;
 		}
 		break;
@@ -109,7 +90,7 @@ int main(int argc, char **argv)
 	int lineLen;
 	unsigned char encData[sizeof(line) + EVP_CIPHER_block_size(EVP_aes_256_cbc())];
 	int encDataLen;
-	UINT32 encLen;
+	UINT32 encLen, i;
 	BYTE *encKey;
 	BYTE *randKey = NULL;
 	UINT32 sealKeyLen;
@@ -150,6 +131,50 @@ int main(int argc, char **argv)
 		logError(_("Unable to open input file: %s\n"),
 			 in_filename);
 		goto out_close;
+	}
+
+	/* Create the PCRs object. If any PCRs above 15 are selected, this will need to be
+	 * a 1.2 TSS/TPM */
+	if (selectedPcrsLen) {
+		TSS_FLAG initFlag = 0;
+		UINT32 pcrSize;
+		BYTE *pcrValue;
+
+		for (i = 0; i < selectedPcrsLen; i++) {
+			if (selectedPcrs[i] > 15) {
+#ifdef TSS_LIB_IS_12
+				initFlag |= TSS_PCRS_STRUCT_INFO_LONG;
+#else
+				logError(_("This version of %s was compiled for a v1.1 TSS, which "
+					 "can only seal\n data to PCRs 0-15. PCR %u is out of range"
+					 "\n"), argv[0], selectedPcrs[i]);
+				goto out_close;
+#endif
+			}
+		}
+
+		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+					&hPcrs) != TSS_SUCCESS)
+			goto out_close;
+
+		for (i = 0; i < selectedPcrsLen; i++) {
+			if (tpmPcrRead(hTpm, selectedPcrs[i], &pcrSize, &pcrValue) != TSS_SUCCESS)
+				goto out_close;
+
+			if (pcrcompositeSetPcrValue(hPcrs, selectedPcrs[i], pcrSize, pcrValue)
+					!= TSS_SUCCESS)
+				goto out_close;
+		}
+#ifdef TSS_LIB_IS_12
+		if (initFlag) {
+			UINT32 localityValue =
+				TPM_LOC_ZERO | TPM_LOC_ONE | TPM_LOC_TWO | TPM_LOC_THREE |
+				TPM_LOC_FOUR;
+
+			if (pcrcompositeSetPcrLocality(hPcrs, localityValue) != TSS_SUCCESS)
+				goto out_close;
+		}
+#endif
 	}
 
 	/* Retrieve random data to be used as the symmetric key
