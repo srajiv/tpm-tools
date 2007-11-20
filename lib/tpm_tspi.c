@@ -394,7 +394,9 @@ policySetSecret(TSS_HPOLICY a_hPolicy,
 	BYTE wellKnown[] = TSS_WELL_KNOWN_SECRET;
 
 	//If secret is TSS_WELL_KNOWN_SECRET, change secret mode to TSS_SECRET_MODE_SHA1
-	if (!memcmp(a_chSecret, (BYTE *)wellKnown, sizeof(wellKnown)))
+	if (a_chSecret &&
+	    a_uiSecretLen == sizeof(wellKnown) &&
+	    !memcmp(a_chSecret, (BYTE *)wellKnown, sizeof(wellKnown)))
 		result =
 			Tspi_Policy_SetSecret(a_hPolicy, TSS_SECRET_MODE_SHA1,
 					a_uiSecretLen, a_chSecret);
@@ -569,12 +571,44 @@ TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
 	return result;
 }
 
+TSS_RESULT
+tpmPcrRead(TSS_HTPM a_hTpm, UINT32 a_Idx,
+		UINT32 *a_PcrSize, BYTE **a_PcrValue)
+{
+	TSS_RESULT result =
+		Tspi_TPM_PcrRead(a_hTpm, a_Idx, a_PcrSize, a_PcrValue);
+	tspiResult("Tspi_TPM_PcrRead", result);
+
+	return result;
+}
+
+TSS_RESULT
+pcrcompositeSetPcrValue(TSS_HPCRS a_hPcrs, UINT32 a_Idx,
+			UINT32 a_PcrSize, BYTE *a_PcrValue)
+{
+	TSS_RESULT result =
+		Tspi_PcrComposite_SetPcrValue(a_hPcrs, a_Idx, a_PcrSize, a_PcrValue);
+	tspiResult("Tspi_PcrComposite_SetPcrValue", result);
+
+	return result;
+}
+
 #ifdef TSS_LIB_IS_12
 TSS_RESULT
 unloadVersionInfo(UINT64 *offset, BYTE *blob, TPM_CAP_VERSION_INFO *v)
 {
 	TSS_RESULT result = Trspi_UnloadBlob_CAP_VERSION_INFO(offset, blob, v);
 	tspiResult("Trspi_UnloadBlob_CAP_VERSION_INFO", result);
+	return result;
+}
+
+TSS_RESULT
+pcrcompositeSetPcrLocality(TSS_HPCRS a_hPcrs, UINT32 localityValue)
+{
+	TSS_RESULT result =
+		Tspi_PcrComposite_SetPcrLocality(a_hPcrs, localityValue);
+	tspiResult("Tspi_PcrComposite_SetPcrLocality", result);
+
 	return result;
 }
 #endif
