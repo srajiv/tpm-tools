@@ -87,7 +87,7 @@ tpmCreateRevEk(TSS_HTPM a_hTpm, TSS_HKEY a_hKey,
 static int readData(UINT32 bytesToRead, BYTE **buffer)
 {
 	FILE *infile = NULL;
-	int iBytes;
+	size_t iBytes;
 	int rc = 0;
 	BYTE eofile;
 
@@ -122,7 +122,7 @@ static int readData(UINT32 bytesToRead, BYTE **buffer)
 static int writeData(UINT32 bytesToWrite, BYTE *buffer)
 {
 	FILE *outfile = NULL;
-	int iBytes;
+	size_t iBytes;
 	int rc = 0;
 
 	logDebug(_("bytesToWrite: %d\n"), bytesToWrite);
@@ -140,7 +140,7 @@ static int writeData(UINT32 bytesToWrite, BYTE *buffer)
 		rc = -1;
 	}
 
-	logDebug(_("%d bytes written on file %s.\n"), iBytes, out_filename);
+	logDebug(_("%zd bytes written on file %s.\n"), iBytes, out_filename);
 	fclose( outfile );
 	return rc;
 

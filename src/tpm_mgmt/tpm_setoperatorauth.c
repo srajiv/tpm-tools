@@ -90,7 +90,8 @@ int main(int argc, char **argv)
 
 	//Prompt for operator password
 	if (!isWellKnown) {
-		passwd = _getPasswd(_("Enter operator password: "), &pswd_len, TRUE, passUnicode || useUnicode );
+		passwd = _getPasswd(_("Enter operator password: "), (int *)&pswd_len, TRUE,
+				    passUnicode || useUnicode );
 		if (!passwd) {
 			logError(_("Failed to get operator password\n"));
 			goto out_close;
