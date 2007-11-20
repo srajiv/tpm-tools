@@ -37,7 +37,7 @@ tpmUnsealFile, tpmUnsealShred, tpmUnsealStrerror - unseal routines
 
 .SH "DESCRIPTION"
 .PP
-The functions in the tpmUnseal family allow access to a piece of sensitive data that has been sealed to the TPM configuration of a given system if the conditions are right, that is the SRK has not changed and does not require authorization, and the PCRS (if any) specified at seal time are of the appropriate value.
+The functions in the tpmUnseal family allow access to a piece of sensitive data that has been sealed to the TPM configuration of a given system if the conditions are right, that is the SRK has not changed and the PCRS (if any) specified at seal time are of the appropriate value.
 
 The tpmUnsealFile function returns the contents of the file unsealed in the data buffer.  The memory at *data must be freed by the caller.
 
