@@ -113,8 +113,13 @@ TSS_RESULT keyCreateKey(TSS_HKEY a_hKey, TSS_HKEY a_hWrapKey,
 TSS_RESULT dataSeal(TSS_HENCDATA a_hEncdata, TSS_HKEY a_hKey,
 			UINT32 a_len, BYTE * a_data,
 			TSS_HPCRS a_hPcrs);
+TSS_RESULT tpmPcrRead(TSS_HTPM a_hTpm, UINT32 a_Idx,
+			UINT32 *a_PcrSize, BYTE **a_PcrValue);
+TSS_RESULT pcrcompositeSetPcrValue(TSS_HPCRS a_hPcrs, UINT32 a_Idx,
+					UINT32 a_PcrSize, BYTE *a_PcrValue);
 #ifdef TSS_LIB_IS_12
 TSS_RESULT unloadVersionInfo(UINT64 *offset, BYTE *blob, TPM_CAP_VERSION_INFO *v);
+TSS_RESULT pcrcompositeSetPcrLocality(TSS_HPCRS a_hPcrs, UINT32 localityValue);
 #endif
 
 #endif
