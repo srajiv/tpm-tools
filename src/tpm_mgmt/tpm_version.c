@@ -18,6 +18,7 @@
  * along with this program; if not, a copy can be viewed at
  * http://www.opensource.org/licenses/cpl1.0.php.
  */
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <stdlib.h>		//for def. exit
 #include "tpm_tspi.h"
