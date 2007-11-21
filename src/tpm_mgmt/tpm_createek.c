@@ -22,6 +22,8 @@
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
 
+TSS_HCONTEXT hContext = 0;
+
 #ifdef TSS_LIB_IS_12
 #include <limits.h>
 
@@ -31,7 +33,6 @@ static BOOL isRevocable = FALSE;
 static BOOL needGenerateSecret = FALSE;
 static BOOL inFileSet = FALSE;
 static BOOL outFileSet = FALSE;
-TSS_HCONTEXT hContext = 0;
 
 static void help(const char *aCmd)
 {
