@@ -25,6 +25,7 @@
 
 //Controlled by input options
 static int resultFlag = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 TSS_RESULT selfTestFull(TSS_HTPM a_hTpm)
 {
@@ -47,7 +48,6 @@ TSS_RESULT selfTestResult(TSS_HTPM a_hTpm,
 
 int cmdSelfTest(const char *a_szCmd)
 {
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	UINT32 uiResultLen;
 	BYTE *pResult;

@@ -25,6 +25,7 @@
 //Controled by input options
 static BOOL bValue = FALSE;	//If true FORCE CLEAR
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static inline TSS_RESULT tpmClearOwner(TSS_HTPM a_hTpm, BOOL a_bValue)
 {
@@ -69,7 +70,6 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
 	int iRc = -1;
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 			szTpmPasswd = (char *)well_known;
 			pswd_len = sizeof(well_known);
 		}else{
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			szTpmPasswd = GETPASSWD(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!szTpmPasswd) {
 				logMsg(_("Failed to get password\n"));
 				goto out_close;

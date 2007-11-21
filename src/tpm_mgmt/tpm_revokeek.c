@@ -26,6 +26,7 @@
 //Controled by input options
 static char in_filename[PATH_MAX] = "";
 static BOOL isInputSet = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static void help(const char *aCmd)
 {
@@ -96,7 +97,6 @@ static int readData(UINT32 bytesToRead, BYTE **buffer)
 int main(int argc, char **argv)
 {
 	TSS_RESULT tResult;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	int iRc = -1;
 	struct option opts[] = {

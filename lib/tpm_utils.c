@@ -24,6 +24,7 @@
 #include <trousers/tss.h>
 #include <trousers/trousers.h>
 
+#include "tpm_tspi.h"
 #include "tpm_utils.h"
 
 BOOL useUnicode = FALSE;
@@ -154,11 +155,12 @@ char *getPlainPasswd(const char *a_pszPrompt, BOOL a_bConfirm) {
 	return _getPasswd(a_pszPrompt, &len, a_bConfirm, FALSE);
 }
 
+#ifndef TSS_LIB_IS_12
 char *getPasswd(const char *a_pszPrompt, int* a_iLen, 
 		BOOL a_bConfirm) {
 	return _getPasswd( a_pszPrompt, a_iLen, a_bConfirm, useUnicode);
 }
-
+#endif
 char *_getPasswd(const char *a_pszPrompt, int* a_iLen, 
 		BOOL a_bConfirm, BOOL a_bUseUnicode) {
 

@@ -22,6 +22,7 @@
 #include "tpm_tspi.h"
 
 TSS_UUID SRK_UUID = TSS_UUID_SRK;
+extern TSS_HCONTEXT hContext;
 
 const char *mapUnknown = "Unknown";
 
@@ -594,6 +595,41 @@ pcrcompositeSetPcrValue(TSS_HPCRS a_hPcrs, UINT32 a_Idx,
 }
 
 #ifdef TSS_LIB_IS_12
+/*
+ * These getPasswd functions will wrap calls to the other functions and check to see if the TSS
+ * library's context tells us to remove the NULL terminating chars from the end of the password
+ * when unicode is on.
+ */
+char *
+getPasswd12(const char *a_pszPrompt, int* a_iLen, BOOL a_bConfirm)
+{
+	return _getPasswd12( a_pszPrompt, a_iLen, a_bConfirm, useUnicode);
+}
+
+char *_getPasswd12(const char *a_pszPrompt, int* a_iLen, BOOL a_bConfirm, BOOL a_bUseUnicode)
+{
+	UINT32 status;
+	char *passwd;
+
+	passwd = _getPasswd(a_pszPrompt, a_iLen, a_bConfirm, a_bUseUnicode);
+
+	if (passwd && a_bUseUnicode) {
+		/* If we're running against a 1.2 TSS, it will include the null terminating
+		 * characters based on the TSS_TSPATTRIB_SECRET_HASH_MODE attribute of the
+		 * context. If this is set to TSS_TSPATTRIB_HASH_MODE_NOT_NULL, we need to
+		 * trim the two zeros off the end of the unicode string returned by
+		 * Trspi_Native_To_UNICODE. */
+		if (getAttribUint32(hContext, TSS_TSPATTRIB_SECRET_HASH_MODE,
+				    TSS_TSPATTRIB_SECRET_HASH_MODE_POPUP, &status))
+			goto out;
+
+		if (status == TSS_TSPATTRIB_HASH_MODE_NOT_NULL)
+			*a_iLen -= sizeof(TSS_UNICODE);
+	}
+out:
+	return passwd;
+}
+
 TSS_RESULT
 unloadVersionInfo(UINT64 *offset, BYTE *blob, TPM_CAP_VERSION_INFO *v)
 {

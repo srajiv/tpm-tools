@@ -75,7 +75,18 @@ int genericOptHandler( int a_iNumArgs, char **a_pszArgs,
 		       struct option *a_psLongOpts, int a_iNumOpts,
 		       CmdOptParser, CmdHelpFunction );
 char *getPlainPasswd( const char* a_pszPrompt, BOOL a_bConfirm );
+#ifdef TSS_LIB_IS_12
+char *_getPasswd12( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm, BOOL a_uUseUnicode);
+char *getPasswd12( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm );
+
+#define _GETPASSWD	_getPasswd12
+#define GETPASSWD	getPasswd12
+#else
 char *getPasswd( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm );
+
+#define _GETPASSWD	_getPasswd
+#define GETPASSWD	getPasswd
+#endif
 char *_getPasswd( const char *a_pszPrompt, int *a_iLen, BOOL a_bConfirm, BOOL a_bUseUnicode);
 void  shredPasswd( char *a_pszPasswd );
 char *getReply( const char *a_pszPrompt, int a_iMaxLen );

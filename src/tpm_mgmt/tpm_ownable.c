@@ -33,6 +33,7 @@ static TSS_BOOL bValue = TRUE;
 static BOOL bCheck = FALSE;
 static BOOL changeRequested = FALSE;
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -79,7 +80,6 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HPOLICY hTpmPolicy;
 	TSS_HTPM hTpm;
 	int iRc = -1;
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 			pswd_len = sizeof(well_known);
 		} else {
 			// Prompt for owner password
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			szTpmPasswd = GETPASSWD(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!szTpmPasswd) {
 				logMsg(_("Failed to get password\n"));
 				goto out_close;

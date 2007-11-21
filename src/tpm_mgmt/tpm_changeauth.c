@@ -34,6 +34,7 @@ static BOOL origUnicode = FALSE;
 static BOOL newUnicode = FALSE;
 static BOOL wellKnown = FALSE;
 static BOOL setWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 //Order important so you authenticate once even if both changed with one command
 enum {
@@ -112,7 +113,6 @@ int main(int argc, char **argv)
 	int i = 0, iRc = -1;
 	char *passwd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HPOLICY hTpmPolicy, hNewPolicy;
 	TSS_HTPM hTpm;
 	TSS_HTPM hSrk;
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 		passwd = (char *)well_known_secret;
 		pswd_len = TCPA_SHA1_160_HASH_LEN;
 	} else {
-		passwd = _getPasswd(_("Enter owner password: "), &pswd_len,
+		passwd = _GETPASSWD(_("Enter owner password: "), &pswd_len,
 			FALSE, origUnicode || useUnicode );
 		if (!passwd) {
 			logError(_("Failed to get owner password\n"));
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 				passwd = (char *)well_known_secret;
 				pswd_len = TCPA_SHA1_160_HASH_LEN;
 			} else {
-				passwd = _getPasswd(_(auths[i].prompt), &pswd_len,
+				passwd = _GETPASSWD(_(auths[i].prompt), &pswd_len,
 					TRUE, newUnicode || useUnicode );
 				if (!passwd) {
 					logError(_("Failed to get new password.\n"));

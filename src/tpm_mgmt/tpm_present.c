@@ -61,6 +61,7 @@ static BOOL bYes = FALSE;
 static TSS_BOOL bValue;
 static BOOL isWellKnown = FALSE;
 static BYTE well_known[] = TSS_WELL_KNOWN_SECRET;
+TSS_HCONTEXT hContext = 0;
 
 
 static void help(const char *aCmd)
@@ -184,7 +185,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 				pswd_len = sizeof(well_known);
 			} else {
 				// Prompt for owner password
-				pwd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+				pwd = GETPASSWD(_("Enter owner password: "), &pswd_len, FALSE);
 				if (!pwd) {
 					logMsg(_("Failed to get password\n"));
 					goto warn;
@@ -260,7 +261,6 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
 	int iRc = -1;
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 			pswd_len = sizeof(well_known);
 		} else {
 			// Prompt for owner password
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			szTpmPasswd = GETPASSWD(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!szTpmPasswd) {
 				logMsg(_("Failed to get password\n"));
 				goto out_close;

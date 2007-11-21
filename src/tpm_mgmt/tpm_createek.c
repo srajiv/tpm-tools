@@ -31,6 +31,7 @@ static BOOL isRevocable = FALSE;
 static BOOL needGenerateSecret = FALSE;
 static BOOL inFileSet = FALSE;
 static BOOL outFileSet = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static void help(const char *aCmd)
 {
@@ -161,7 +162,6 @@ tpmCreateEk(TSS_HTPM a_hTpm, TSS_HKEY a_hKey,
 int main(int argc, char **argv)
 {
 	TSS_RESULT tResult;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HKEY hEk;
 	TSS_FLAG fEkAttrs;

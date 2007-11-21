@@ -32,6 +32,7 @@ static void help(const char* aCmd)
 
 static BOOL ownerWellKnown = FALSE;
 static BOOL srkWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -65,7 +66,6 @@ int main(int argc, char **argv)
 	char *szTpmPasswd = NULL;
 	char *szSrkPasswd = NULL;
 	int tpm_len, srk_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HKEY hSrk;
 	TSS_FLAG fSrkAttrs;
@@ -84,22 +84,22 @@ int main(int argc, char **argv)
 	     parse, help) != 0)
 		goto out;
 
+	if (contextCreate(&hContext) != TSS_SUCCESS)
+		goto out;
+
 	if (!ownerWellKnown) {
 		// Prompt for owner password
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, TRUE);
+		szTpmPasswd = GETPASSWD(_("Enter owner password: "), &tpm_len, TRUE);
 		if (!szTpmPasswd)
 			goto out;
 	}
 
 	if (!srkWellKnown) {
 		// Prompt for srk password
-		szSrkPasswd = getPasswd(_("Enter SRK password: "), &srk_len, TRUE);
+		szSrkPasswd = GETPASSWD(_("Enter SRK password: "), &srk_len, TRUE);
 		if (!szSrkPasswd)
 			goto out;
 	}
-
-	if (contextCreate(&hContext) != TSS_SUCCESS)
-		goto out;
 
 	if (contextConnect(hContext) != TSS_SUCCESS)
 		goto out_close;

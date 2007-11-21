@@ -24,6 +24,7 @@
 
 static BOOL passUnicode = FALSE;
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static void help(const char *aCmd)
 {
@@ -63,7 +64,6 @@ int main(int argc, char **argv)
 	int iRc = -1;
 	char *passwd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HPOLICY hNewPolicy;
 	TSS_HTPM hTpm;
 	struct option opts[] = {
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 
 	//Prompt for operator password
 	if (!isWellKnown) {
-		passwd = _getPasswd(_("Enter operator password: "), (int *)&pswd_len, TRUE,
+		passwd = _GETPASSWD(_("Enter operator password: "), (int *)&pswd_len, TRUE,
 				    passUnicode || useUnicode );
 		if (!passwd) {
 			logError(_("Failed to get operator password\n"));

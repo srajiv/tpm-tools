@@ -30,6 +30,7 @@
 static int request = STATUS_CHECK;
 static TSS_FLAG fForce = TSS_TPMSTATUS_OWNERSETDISABLE;
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 /*
  * Affect: Change TPM state between enabled and disabled
  * Default: Display current status
@@ -85,7 +86,6 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_BOOL bValue;
 	TSS_HPOLICY hTpmPolicy;
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 			szTpmPasswd = (char *)well_known;
 			pswd_len = sizeof(well_known);
 		} else {
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			szTpmPasswd = GETPASSWD(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!szTpmPasswd) {
 				logMsg(_("Failed to get password\n"));
 				goto out_close;
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 				szTpmPasswd = (char *)well_known;
 				pswd_len = sizeof(well_known);
 			} else {
-				szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len,
+				szTpmPasswd = GETPASSWD(_("Enter owner password: "), &pswd_len,
 							FALSE);
 				if (!szTpmPasswd) {
 					logMsg(_("Failed to get password\n"));

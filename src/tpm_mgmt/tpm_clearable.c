@@ -57,6 +57,7 @@ static struct physFlag flags[] = { {N_("Owner Clear"),
 static BOOL bCheck = FALSE;
 static BOOL bChangeRequested = FALSE;
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -95,7 +96,6 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	int pswd_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
 	int iRc = -1;
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 			szTpmPasswd = (char *)well_known;
 			pswd_len = sizeof(well_known);
 		} else {
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &pswd_len, FALSE);
+			szTpmPasswd = GETPASSWD(_("Enter owner password: "), &pswd_len, FALSE);
 			if (!szTpmPasswd) {
 				logMsg(_("Failed to get password\n"));
 				goto out_close;
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 					szTpmPasswd = (char *)well_known;
 					pswd_len = sizeof(well_known);
 				} else {
-					szTpmPasswd = getPasswd(_("Enter owner password: "),
+					szTpmPasswd = GETPASSWD(_("Enter owner password: "),
 								&pswd_len, FALSE);
 					if (!szTpmPasswd) {
 						logMsg(_("Failed to get password\n"));

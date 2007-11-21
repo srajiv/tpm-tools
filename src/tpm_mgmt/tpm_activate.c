@@ -31,6 +31,7 @@
 
 static int request = STATUS_CHECK;
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static void help(const char *aCmd)
 {
@@ -86,7 +87,6 @@ int main(int argc, char **argv)
 
 	char *szTpmPasswd = NULL;
 	int tpm_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
 	TSS_BOOL bValue;
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 			szTpmPasswd = (char *)well_known;
 			tpm_len = sizeof(well_known);
 		} else {
-			szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, FALSE);
+			szTpmPasswd = GETPASSWD(_("Enter owner password: "), &tpm_len, FALSE);
 			if (!szTpmPasswd) {
 				logMsg(_("Failed to get password\n"));
 				goto out_close;

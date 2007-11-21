@@ -24,6 +24,7 @@
 
 
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 
 static void help(const char* aCmd)
@@ -51,7 +52,6 @@ main( int argc, char **argv )
 {
 	char *szTpmPasswd = NULL;
 	int tpm_len;
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	TSS_HPOLICY hTpmPolicy;
 	TSS_BOOL bValue = TRUE;
@@ -67,9 +67,12 @@ main( int argc, char **argv )
 			      help) != 0)
 		goto out;
 
+	if (contextCreate(&hContext) != TSS_SUCCESS)
+		goto out;
+
 	if (!isWellKnown) {
 		// Prompt for owner password
-		szTpmPasswd = getPasswd(_("Enter owner password: "), &tpm_len, FALSE);
+		szTpmPasswd = GETPASSWD(_("Enter owner password: "), &tpm_len, FALSE);
 		if (!szTpmPasswd) {
 			logError(_("Failed to get Owner password\n"));
 			goto out;
@@ -78,9 +81,6 @@ main( int argc, char **argv )
 		szTpmPasswd = (char *)wellKnown;
 		tpm_len = sizeof(wellKnown);
 	}
-
-	if (contextCreate(&hContext) != TSS_SUCCESS)
-		goto out_close;
 
 	if (contextConnect(hContext) != TSS_SUCCESS)
 		goto out_close;

@@ -43,12 +43,12 @@ static void help(const char *aCmd)
 
 static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX] = "";
 static TSS_HPCRS hPcrs = NULL_HPCRS;
-static TSS_HCONTEXT hContext;
 static TSS_HTPM hTpm;
 static UINT32 selectedPcrs[24];
 static UINT32 selectedPcrsLen = 0;
 static BOOL passUnicode = FALSE;
 static BOOL isWellKnown = FALSE;
+TSS_HCONTEXT hContext = 0;
 
 static int parse(const int aOpt, const char *aArg)
 {
@@ -213,7 +213,7 @@ int main(int argc, char **argv)
 
 	/* Prompt for SRK password */
 	if (!isWellKnown) {
-		passwd = _getPasswd(_("Enter SRK password: "), (int *)&pswd_len, FALSE,
+		passwd = _GETPASSWD(_("Enter SRK password: "), (int *)&pswd_len, FALSE,
 				    passUnicode);
 		if (!passwd) {
 			logError(_("Failed to get SRK password\n"));

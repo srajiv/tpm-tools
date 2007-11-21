@@ -23,9 +23,10 @@
 #include "tpm_tspi.h"
 
 
+TSS_HCONTEXT hContext = 0;
+
 int cmdVersion(const char *a_szCmd)
 {
-	TSS_HCONTEXT hContext;
 	TSS_HTPM hTpm;
 	UINT32 uiSubCap;
 	BYTE *pSubCap;
