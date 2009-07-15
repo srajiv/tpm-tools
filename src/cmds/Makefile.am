@@ -21,7 +21,8 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-bin_PROGRAMS 	=	tpm_sealdata
+bin_PROGRAMS 	=	tpm_sealdata \
+			tpm_unsealdata
 
 if TSS_LIB_IS_12
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX -DTSS_LIB_IS_12
@@ -29,6 +30,7 @@ else
 AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
 endif
 
-LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi
+LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi $(top_builddir)/lib/libtpm_unseal.la -ltpm_unseal
 
 tpm_sealdata_SOURCES = tpm_sealdata.c
+tpm_unsealdata_SOURCES = tpm_unsealdata.c
