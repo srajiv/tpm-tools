@@ -81,7 +81,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	TSS_HPOLICY hPolicy;
 	UINT32 symKeyLen;
 	BYTE *symKey;
-
+	BYTE wellKnown[TCPA_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
 	unsigned char* res_data = NULL;
 	int res_size = 0;
 
@@ -331,9 +331,10 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		tpm_errno = ETSPIGETPO;
 		goto tss_out;
 	}
-
-	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_PLAIN, 0, NULL)) 
-					!= TSS_SUCCESS) {
+	
+	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_SHA1,
+				      sizeof(wellKnown),
+				      (BYTE *) wellKnown)) !=  TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out;
 	}
