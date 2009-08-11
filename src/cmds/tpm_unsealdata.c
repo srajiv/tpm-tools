@@ -91,7 +91,10 @@ int main(int argc, char **argv)
 			return rc;
 	}
 
-	fwrite(tss_data, tss_size, 1, fp);
+	if (fwrite(tss_data, tss_size, 1, fp) != 1) {
+		logError(_("Unable to write output file"));
+		return rc;
+	}
 	fclose(fp);
 	free(tss_data);
 	return rc;
