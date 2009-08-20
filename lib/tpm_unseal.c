@@ -45,6 +45,7 @@ enum tspi_errors {
 	ETSPIPOLATO,
 };
 
+TSS_HCONTEXT hContext = 0;
 #define TSPI_FUNCTION_NAME_MAX 30
 char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= { 
 				"Tspi_Context_Create",
@@ -63,9 +64,9 @@ char tspi_error_strings[][TSPI_FUNCTION_NAME_MAX]= {
 #define EVPKEY_DEFAULT_SIZE 512
 
 int tpm_errno;
-TSS_UUID SRK_UUID = TSS_UUID_SRK;
 
-int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
+int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size, 
+		   BOOL srkWellKnown ) {
 
 	int rc, rcLen=0, tssLen=0, evpLen=0;
 	BYTE* rcPtr;
@@ -75,13 +76,14 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 	BYTE *evpKeyData = NULL;
 	int evpKeyDataSize = 0;
 	struct stat stats;
-	TSS_HCONTEXT hContext;
 	TSS_HENCDATA hEncdata;
 	TSS_HKEY hSrk, hKey;
 	TSS_HPOLICY hPolicy;
 	UINT32 symKeyLen;
 	BYTE *symKey;
 	BYTE wellKnown[TCPA_SHA1_160_HASH_LEN] = TSS_WELL_KNOWN_SECRET;
+	char *srkSecret = NULL;
+	int srkSecretLen;
 	unsigned char* res_data = NULL;
 	int res_size = 0;
 
@@ -277,6 +279,12 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto out;
 	}
 
+	if (!srkWellKnown) {
+		/* Prompt for SRK password */
+		srkSecret = GETPASSWD(_("Enter SRK password: "), &srkSecretLen, FALSE);
+		if (!srkSecret)
+			goto out;
+	}
 	if ((rc=Tspi_Context_Connect(hContext, NULL)) != TSS_SUCCESS) {
 		tpm_errno = ETSPICTXCNCT;
 		goto tss_out;
@@ -332,9 +340,16 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size ) {
 		goto tss_out;
 	}
 	
-	if ((rc=Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_SHA1,
-				      sizeof(wellKnown),
-				      (BYTE *) wellKnown)) !=  TSS_SUCCESS) {
+	if (srkWellKnown)
+		rc = Tspi_Policy_SetSecret(hPolicy, TSS_SECRET_MODE_SHA1,
+				           sizeof(wellKnown),
+				           (BYTE *) wellKnown);
+	else
+		rc = Tspi_Policy_SetSecret(hPolicy,TSS_SECRET_MODE_PLAIN,
+					   srkSecretLen, 
+					   (BYTE *) srkSecret);
+					   
+	if (rc != TSS_SUCCESS) {
 		tpm_errno = ETSPIPOLSS;
 		goto tss_out;
 	}
@@ -410,6 +425,9 @@ tss_out:
 	Tspi_Context_Close(hContext);
 out:
 
+	if (srkSecret)
+		shredPasswd(srkSecret);
+	
 	if ( bdata )
 		BIO_free(bdata);
 	if ( b64 )

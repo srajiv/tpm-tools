@@ -79,5 +79,5 @@ endif
 #
 # Unseal library - for addition to existing apps, counter part of seal cmd
 libtpm_unseal_la_SOURCES =	tpm_unseal.c
-libtpm_unseal_la_LDFLAGS =	-shared -version-info 0:1:0
-libtpm_unseal_la_LIBADD  =	-ltspi
+libtpm_unseal_la_LDFLAGS =	-shared -version-info 1:0:0
+libtpm_unseal_la_LIBADD  =	-ltspi  libtpm_tspi.la

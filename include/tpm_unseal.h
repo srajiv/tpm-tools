@@ -37,7 +37,7 @@ enum tpm_errors {
 
 extern int tpm_errno;
 
-int tpmUnsealFile(char*, unsigned char**, int*);
+int tpmUnsealFile(char*, unsigned char**, int*, BOOL);
 void tpmUnsealShred(unsigned char*, int);
 char* tpmUnsealStrerror(int);
 
