@@ -146,7 +146,7 @@ openToken( char *a_pszTokenLabel ) {
 
 	CK_RV          rv;
 	CK_ULONG       ulSlots;
-	CK_SLOT_ID    *ptSlots;
+	CK_SLOT_ID    *ptSlots = NULL;
 	CK_SLOT_INFO   tSlotInfo;
 	CK_TOKEN_INFO  tTokenInfo;
 
@@ -254,6 +254,9 @@ openToken( char *a_pszTokenLabel ) {
 	}
 
 out:
+	if (rv != CKR_OK)
+		free(ptSlots);
+
 	if ( !g_bTokenOpen && g_bInit ) {
 		g_pFcnList->C_Finalize( NULL );
 		g_bInit = FALSE;
