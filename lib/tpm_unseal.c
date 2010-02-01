@@ -445,7 +445,9 @@ out:
 	if ( rc == 0 ) {
 		*tss_data = res_data;
 		*tss_size = res_size;
-	}
+	} else
+		free(res_data);
+
 	return rc;
 }
 
