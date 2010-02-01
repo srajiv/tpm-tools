@@ -22,11 +22,14 @@
 #
 
 AC_INIT(tpm-tools, 1.3.5, trousers-tech@lists.sf.net)
+AC_PREREQ(2.12)dnl
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_CONFIG_HEADER(config.h)
-AC_CANONICAL_TARGET
 
+AC_CONFIG_MACRO_DIR([m4])
+AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign 1.6])
+
 
 DEBUG=""
 AC_MSG_CHECKING([for debug-enabled build])
@@ -55,17 +58,15 @@ fi
 
 
 AC_PROG_CC
-AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
-AC_PROG_LN_S
 
-AC_CHECK_PROGS(AR, ar)
 AC_CHECK_PROGS(COPY, cp)
 AC_CHECK_PROGS(ECHO, echo)
 AC_CHECK_PROGS(MKDIR, mkdir)
 AC_CHECK_PROGS(RM, rm)
 
+AM_GNU_GETTEXT_VERSION([0.15])
 AM_GNU_GETTEXT([external])
 
 # Arch specific stuff

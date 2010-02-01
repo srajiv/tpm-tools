@@ -28,14 +28,7 @@ set -x
 # gettextize support
 mkdir -p po
 mkdir -p m4
-touch config.rpath
-touch mkinstalldirs
 cp -R po_/* po/
 touch po/Makefile.in.in
 touch m4/Makefile.am
-gettextize -c --force --no-changelog || exit
-
-aclocal || exit
-libtoolize --force -c || exit 
-automake -c --add-missing --foreign || exit 
-autoconf
+autoreconf -fv --install
