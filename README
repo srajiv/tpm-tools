@@ -43,7 +43,7 @@
 
  BUILDING tpm-tools
  -------- ---------
- $ sh ./bootstap.sh
+ $ sh ./bootstrap.sh
  $ ./configure
  $ make
  # make install

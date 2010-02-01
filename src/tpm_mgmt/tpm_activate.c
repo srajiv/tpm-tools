@@ -152,12 +152,12 @@ int main(int argc, char **argv)
 	case ACTIVATE:
 		if (tpmSetStatus(hTpm, TSS_TPMSTATUS_PHYSICALSETDEACTIVATED, FALSE) != TSS_SUCCESS)
 			goto out_close;
-		logMsg(_("Action requires a reboot to take affect\n"));
+		logMsg(_("Action requires a reboot to take effect\n"));
 		break;
 	case DEACTIVATE:
 		if (tpmSetStatus(hTpm, TSS_TPMSTATUS_PHYSICALSETDEACTIVATED, TRUE) != TSS_SUCCESS)
 			goto out_close;
-		logMsg(_("Action requires a reboot to take affect\n"));
+		logMsg(_("Action requires a reboot to take effect\n"));
 		break;
 	case TEMP_DEACTIVATE:
 		if (tpmSetStatus(hTpm, TSS_TPMSTATUS_SETTEMPDEACTIVATED, TRUE) != TSS_SUCCESS)
