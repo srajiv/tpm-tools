@@ -52,7 +52,7 @@ char *g_pszToken  = NULL;		// Token label to be used
 
 int       g_bAttrsValid  = FALSE;
 CK_BYTE  *g_pchSubject   = NULL;	// SUBJECT attribute value
-CK_ULONG  g_ulSubjectLen = 0;
+CK_LONG   g_subjectLen = 0;
 CK_BYTE  *g_pchId        = NULL;	// ID attribute value
 CK_ULONG  g_ulIdLen      = 0;
 CK_BYTE  *g_pchName      = NULL;	// LABEL attribute value
@@ -205,7 +205,7 @@ findExistingObjects( CK_SESSION_HANDLE   a_hSession,
 	// Set up default search attributes
 	CK_ATTRIBUTE  tDefaultAttr[]     = {
 			{ CKA_TOKEN, &bTrue, sizeof( bTrue ) },
-			{ CKA_SUBJECT, g_pchSubject, g_ulSubjectLen },
+			{ CKA_SUBJECT, g_pchSubject, g_subjectLen },
 			{ CKA_ID, g_pchId, g_ulIdLen },
 		};
 	CK_ULONG      ulDefaultAttrCount = sizeof( tDefaultAttr ) / sizeof( CK_ATTRIBUTE );
@@ -443,11 +443,11 @@ createX509CertObject( X509              *a_pX509,
 	ASN1_INTEGER *pSerialNum = NULL;
 
 	CK_BYTE  *pchIssuer      = NULL;
-	CK_ULONG  ulIssuerLen    = 0;
+	CK_LONG  issuerLen    = 0;
 	CK_BYTE  *pchSerialNum   = NULL;
-	CK_ULONG  ulSerialNumLen = 0;
+	CK_LONG  serialNumLen = 0;
 	CK_BYTE  *pchCert        = NULL;
-	CK_ULONG  ulCertLen      = 0;
+	CK_LONG  certLen      = 0;
 
 	CK_OBJECT_CLASS      clCertClass = CKO_CERTIFICATE;
 	CK_CERTIFICATE_TYPE  tCertType   = CKC_X_509;
@@ -462,7 +462,7 @@ createX509CertObject( X509              *a_pX509,
 			{ CKA_MODIFIABLE, &bTrue, sizeof( bTrue ) },
 			{ CKA_LABEL, g_pchName, g_ulNameLen },
 			{ CKA_CERTIFICATE_TYPE, &tCertType, sizeof( tCertType ) },
-			{ CKA_SUBJECT, g_pchSubject, g_ulSubjectLen },
+			{ CKA_SUBJECT, g_pchSubject, g_subjectLen },
 			{ CKA_ID, g_pchId, g_ulIdLen },
 			{ CKA_ISSUER, NULL, 0 },
 			{ CKA_SERIAL_NUMBER, NULL, 0 },
@@ -479,8 +479,8 @@ createX509CertObject( X509              *a_pX509,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
 	}
-	ulIssuerLen = i2d_X509_NAME( pIssuer, &pchIssuer );
-	if ( ulIssuerLen < 0 ) {
+	issuerLen = i2d_X509_NAME( pIssuer, &pchIssuer );
+	if ( issuerLen < 0 ) {
 		logError( TOKEN_OPENSSL_ERROR,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
@@ -493,16 +493,16 @@ createX509CertObject( X509              *a_pX509,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
 	}
-	ulSerialNumLen = i2d_ASN1_INTEGER( pSerialNum, &pchSerialNum );
-	if ( ulSerialNumLen < 0 ) {
+	serialNumLen = i2d_ASN1_INTEGER( pSerialNum, &pchSerialNum );
+	if ( serialNumLen < 0 ) {
 		logError( TOKEN_OPENSSL_ERROR,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
 	}
 
 	// Get a DER encoded format of the X509 certificate
-	ulCertLen = i2d_X509( a_pX509, &pchCert );
-	if ( ulCertLen < 0 ) {
+	certLen = i2d_X509( a_pX509, &pchCert );
+	if ( certLen < 0 ) {
 		logError( TOKEN_OPENSSL_ERROR,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
@@ -510,11 +510,11 @@ createX509CertObject( X509              *a_pX509,
 
 	// Set the attribute values
 	tCertAttr[ 8 ].pValue = pchIssuer;
-	tCertAttr[ 8 ].ulValueLen = ulIssuerLen;
+	tCertAttr[ 8 ].ulValueLen = issuerLen;
 	tCertAttr[ 9 ].pValue = pchSerialNum;
-	tCertAttr[ 9 ].ulValueLen = ulSerialNumLen;
+	tCertAttr[ 9 ].ulValueLen = serialNumLen;
 	tCertAttr[ 10 ].pValue = pchCert;
-	tCertAttr[ 10 ].ulValueLen = ulCertLen;
+	tCertAttr[ 10 ].ulValueLen = certLen;
 
 	// Create the X509 certificate object
 	rv = createObject( a_hSession, tCertAttr, ulCertAttrCount, &hObject );
@@ -714,7 +714,7 @@ createRsaPubKeyObject( RSA               *a_pRsa,
 			{ CKA_LABEL, g_pchName, g_ulNameLen },
 			{ CKA_KEY_TYPE, &tKeyType, sizeof( tKeyType ) },
 			{ CKA_ID, g_pchId, g_ulIdLen },
-			{ CKA_SUBJECT, g_pchSubject, g_ulSubjectLen },
+			{ CKA_SUBJECT, g_pchSubject, g_subjectLen },
 			{ CKA_ENCRYPT, &bTrue, sizeof( bTrue ) },
 			{ CKA_VERIFY, &bTrue, sizeof( bTrue ) },
 			{ CKA_VERIFY_RECOVER, &bFalse, sizeof( bFalse ) },
@@ -795,7 +795,7 @@ createRsaPrivKeyObject( RSA               *a_pRsa,
 			{ CKA_LABEL, g_pchName, g_ulNameLen },
 			{ CKA_KEY_TYPE, &tKeyType, sizeof( tKeyType ) },
 			{ CKA_ID, g_pchId, g_ulIdLen },
-			{ CKA_SUBJECT, g_pchSubject, g_ulSubjectLen },
+			{ CKA_SUBJECT, g_pchSubject, g_subjectLen },
 			{ CKA_SENSITIVE, &bTrue, sizeof( bTrue ) },
 			{ CKA_DECRYPT, &bTrue, sizeof( bTrue ) },
 			{ CKA_SIGN, &bTrue, sizeof( bTrue ) },
@@ -973,8 +973,8 @@ getSubjectId( X509 *a_pX509 ) {
 	}
 
 	// Get the DER encoded format of the subject name
-	g_ulSubjectLen = i2d_X509_NAME( pSubject, &g_pchSubject );
-	if ( !g_ulSubjectLen < 0 ) {
+	g_subjectLen = i2d_X509_NAME( pSubject, &g_pchSubject );
+	if ( g_subjectLen < 0 ) {
 		logInfo( TOKEN_OPENSSL_ERROR,
 				ERR_error_string( ERR_get_error( ), NULL ) );
 		goto out;
