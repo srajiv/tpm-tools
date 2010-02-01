@@ -40,9 +40,9 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 
 if TSS_LIB_IS_12
 sbin_PROGRAMS  += tpm_revokeek tpm_setoperatorauth tpm_resetdalock tpm_restrictsrk
-AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX -DTSS_LIB_IS_12
+AM_CPPFLAGS	=	-I$(top_srcdir)/include -D_LINUX -DTSS_LIB_IS_12
 else
-AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
+AM_CPPFLAGS	=	-I$(top_srcdir)/include -D_LINUX
 endif
 
 LDADD		=	$(top_builddir)/lib/libtpm_tspi.la -ltspi

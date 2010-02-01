@@ -27,9 +27,16 @@ bin_PROGRAMS	=	tpmtoken_init		\
 			tpmtoken_import		\
 			tpmtoken_protect
 
+noinst_HEADERS =	data_common.h \
+			data_import.h \
+			data_init.h \
+			data_object.h \
+			data_passwd.h \
+			data_protect.h
+
 #
 # Common build flags
-AM_CPPFLAGS	=	-I$(top_builddir)/include -D_LINUX
+AM_CPPFLAGS	=	-I$(top_srcdir)/include -D_LINUX
 
 LDADD		=	$(top_builddir)/lib/libtpm_pkcs11.la -ltspi
 

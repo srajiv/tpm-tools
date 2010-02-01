@@ -30,4 +30,4 @@ SUBDIRS		= 	m4  	\
 
 ACLOCAL_AMFLAGS = -I m4
 
-EXTRA_DIST = config.rpath mkinstalldirs
+EXTRA_DIST = LICENSE test/tpm_changeownerauth01.sh

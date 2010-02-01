@@ -19,6 +19,7 @@
  * http://www.opensource.org/licenses/cpl1.0.php.
  */
 
+#include "config.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <trousers/tss.h>
