@@ -110,4 +110,7 @@ void  logGenericOptions( );
 void  logCmdHelp( const char *a_pszCmd );
 void  logCmdHelpEx( const char *a_pszCmd, char *a_pszArgs[], char *a_pszArgDescs[] );
 char *logBool( BOOL aValue );
+void  logOwnerPassCmdOption( );
+void  logNVIndexCmdOption( );
+
 #endif

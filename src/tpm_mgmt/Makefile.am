@@ -39,7 +39,15 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 			tpm_selftest
 
 if TSS_LIB_IS_12
-sbin_PROGRAMS  += tpm_revokeek tpm_setoperatorauth tpm_resetdalock tpm_restrictsrk
+sbin_PROGRAMS  += 	tpm_nvdefine    \
+			tpm_nvinfo      \
+			tpm_nvread      \
+			tpm_nvrelease   \
+			tpm_nvwrite     \
+			tpm_resetdalock \
+			tpm_restrictsrk \
+			tpm_revokeek \
+			tpm_setoperatorauth
 AM_CPPFLAGS	=	-I$(top_srcdir)/include -D_LINUX -DTSS_LIB_IS_12
 else
 AM_CPPFLAGS	=	-I$(top_srcdir)/include -D_LINUX
@@ -54,6 +62,11 @@ tpm_changeownerauth_SOURCES =	tpm_changeauth.c
 tpm_clear_SOURCES	=	tpm_clear.c
 tpm_createek_SOURCES	=	tpm_createek.c
 tpm_getpubek_SOURCES	=	tpm_getpubek.c
+tpm_nvdefine_SOURCES	=	tpm_nvdefine.c tpm_nvcommon.c
+tpm_nvinfo_SOURCES	=	tpm_nvinfo.c tpm_nvcommon.c
+tpm_nvrelease_SOURCES	=	tpm_nvrelease.c tpm_nvcommon.c
+tpm_nvread_SOURCES	=	tpm_nvread.c tpm_nvcommon.c
+tpm_nvwrite_SOURCES	=	tpm_nvwrite.c tpm_nvcommon.c
 tpm_restrictpubek_SOURCES =	tpm_restrictpubek.c
 tpm_setactive_SOURCES	=	tpm_activate.c
 tpm_setclearable_SOURCES =	tpm_clearable.c

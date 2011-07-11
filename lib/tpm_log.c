@@ -151,6 +151,16 @@ void logUnicodeCmdOption()
 	logCmdOption("-u, --unicode", _("Use TSS UNICODE encoding for passwords to comply with applications using TSS popup boxes"));
 }
 
+void logOwnerPassCmdOption()
+{
+	logCmdOption("-o, --pwdo", _("Owner password"));
+}
+
+void logNVIndexCmdOption()
+{
+	logCmdOption("-i, --index", _("Index of the NVRAM area"));
+}
+
 void logCmdHelp(const char *aCmd)
 {
 	logMsg(_("Usage: %s [options]\n"), aCmd);

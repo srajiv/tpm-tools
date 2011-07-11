@@ -120,6 +120,21 @@ TSS_RESULT pcrcompositeSetPcrValue(TSS_HPCRS a_hPcrs, UINT32 a_Idx,
 #ifdef TSS_LIB_IS_12
 TSS_RESULT unloadVersionInfo(UINT64 *offset, BYTE *blob, TPM_CAP_VERSION_INFO *v);
 TSS_RESULT pcrcompositeSetPcrLocality(TSS_HPCRS a_hPcrs, UINT32 localityValue);
+
+TSS_RESULT NVDefineSpace(TSS_HNVSTORE hNVStore,
+                         TSS_HPCRS hReadPcrComposite,
+                         TSS_HPCRS hWritePcrComposite);
+
+TSS_RESULT NVReleaseSpace(TSS_HNVSTORE hNVStore);
+
+TSS_RESULT NVWriteValue(TSS_HNVSTORE hNVStore, UINT32 offset,
+                        UINT32 ulDataLength, BYTE *rgbDataToWrite);
+
+TSS_RESULT NVReadValue(TSS_HNVSTORE hNVStore, UINT32 offset,
+                       UINT32 *ulDataLength, BYTE **rgbDataRead);
+
+TSS_RESULT unloadNVDataPublic(UINT64 *offset, BYTE *blob, UINT32 bloblen,
+                              TPM_NV_DATA_PUBLIC *v);
 #endif
 
 #endif

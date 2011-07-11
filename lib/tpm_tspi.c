@@ -647,4 +647,71 @@ pcrcompositeSetPcrLocality(TSS_HPCRS a_hPcrs, UINT32 localityValue)
 
 	return result;
 }
+
+TSS_RESULT
+NVDefineSpace(TSS_HNVSTORE hNVStore, TSS_HPCRS hReadPcrComposite ,
+              TSS_HPCRS hWritePcrComposite)
+{
+	TSS_RESULT result =
+	        Tspi_NV_DefineSpace(hNVStore, hReadPcrComposite,
+	                            hWritePcrComposite);
+
+	tspiResult("Tspi_NV_DefineSpace", result);
+
+	return result;
+}
+
+TSS_RESULT
+NVReleaseSpace(TSS_HNVSTORE hNVStore)
+{
+	TSS_RESULT result =
+	        Tspi_NV_ReleaseSpace(hNVStore);
+
+	tspiResult("Tspi_NV_ReleaseSpace", result);
+
+	return result;
+}
+
+TSS_RESULT
+NVWriteValue(TSS_HNVSTORE hNVStore, UINT32 offset,
+             UINT32 ulDataLength, BYTE *rgbDataToWrite)
+{
+	TSS_RESULT result =
+	        Tspi_NV_WriteValue(hNVStore, offset,
+	                           ulDataLength, rgbDataToWrite);
+
+	tspiResult("Tspi_NV_WriteValue", result);
+
+	return result;
+}
+
+TSS_RESULT
+NVReadValue(TSS_HNVSTORE hNVStore, UINT32 offset,
+            UINT32 *ulDataLength, BYTE **rgbDataRead)
+{
+	TSS_RESULT result =
+	        Tspi_NV_ReadValue(hNVStore, offset,
+	                          ulDataLength, rgbDataRead);
+
+	tspiResult("Tspi_NV_ReadValue", result);
+
+	return result;
+}
+
+TSS_RESULT
+unloadNVDataPublic(UINT64 *offset, BYTE *blob, UINT32 blob_len, TPM_NV_DATA_PUBLIC *v)
+{
+	UINT64 off = *offset;
+	TSS_RESULT result;
+	result = Trspi_UnloadBlob_NV_DATA_PUBLIC(&off, blob, NULL);
+	if (result == TSS_SUCCESS) {
+		if (off > blob_len)
+			return TSS_E_BAD_PARAMETER;
+		result = Trspi_UnloadBlob_NV_DATA_PUBLIC(offset, blob, v);
+	}
+	tspiResult("Trspi_UnloadBlob_NV_DATA_PUBLIC", result);
+	return result;
+}
+
+
 #endif
