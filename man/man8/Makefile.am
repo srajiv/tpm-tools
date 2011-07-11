@@ -21,6 +21,16 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
+man8_PODS =
+
+if TSS_LIB_IS_12
+man8_PODS +=	tpm_nvdefine.pod	\
+		tpm_nvinfo.pod		\
+		tpm_nvread.pod		\
+		tpm_nvrelease.pod	\
+		tpm_nvwrite.pod
+endif
+
 man8_MANS =	tpm_changeownerauth.8	\
 		tpm_clear.8		\
 		tpm_createek.8		\
@@ -32,10 +42,17 @@ man8_MANS =	tpm_changeownerauth.8	\
 		tpm_setenable.8		\
 		tpm_setownable.8	\
 		tpm_setpresence.8	\
-		tpm_takeownership.8
+		tpm_takeownership.8	\
+		$(addsuffix .8,$(basename $(man8_PODS)))
 
 if TSS_LIB_IS_12
 man8_MANS+=tpm_revokeek.8 tpm_setoperatorauth.8 tpm_resetdalock.8
 endif
 
 EXTRA_DIST = $(man8_MANS)
+
+%.8 : %.pod
+	@pod2man -r "TPM Management" \
+		-c "" \
+		-n $(basename $@) \
+		--section=8 $< > $@
