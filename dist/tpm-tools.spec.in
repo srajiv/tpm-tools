@@ -14,7 +14,7 @@ URL:            http://www.sf.net/projects/trousers
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-BuildRequires:  autoconf automake libtool trousers-devel opencryptoki-devel openssl-devel
+BuildRequires:  autoconf automake libtool trousers-devel opencryptoki-devel openssl-devel perl opencryptoki-devel
 Requires:       trousers
 
 %description
@@ -93,6 +93,8 @@ rm -rf $RPM_BUILD_ROOT
 %postun -p /sbin/ldconfig
 
 %changelog
+* Tue Jul 12 2010 Stefan Berger <stefanb@linux.vnet.ibm.com> - 1.3.7
+- added perl build dependency
 * Fri Nov 16 2007 Kent Yoder <kyoder@users.sf.net> - 1.3.1
 - Updates to configure
 * Fri Oct 05 2007 Kent Yoder <kyoder@users.sf.net> - 1.2.5.1

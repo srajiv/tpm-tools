@@ -9,7 +9,7 @@ URL:            http://www.sf.net/projects/trousers
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-BuildRequires:  autoconf automake libtool trousers-devel openssl-devel
+BuildRequires:  autoconf automake libtool trousers-devel openssl-devel perl
 Requires:       trousers
 
 %description
