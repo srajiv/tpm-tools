@@ -21,7 +21,7 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
-AC_INIT(tpm-tools, 1.3.6, trousers-tech@lists.sf.net)
+AC_INIT(tpm-tools, 1.3.7, trousers-tech@lists.sf.net)
 AC_PREREQ(2.12)dnl
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_CONFIG_HEADER(config.h)
