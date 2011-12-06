@@ -92,12 +92,12 @@ int main(int argc, char **argv)
 			printf("%c", tss_data[i]);
 		goto out;
 	} else if ((fp = fopen(out_filename, "w")) == NULL) {
-			logError(_("Unable to open output file"));
+			logError(_("Unable to open output file\n"));
 			goto out;
 	}
 
 	if (fwrite(tss_data, tss_size, 1, fp) != 1) {
-		logError(_("Unable to write output file"));
+		logError(_("Unable to write output file\n"));
 		goto out;
 	}
 	fclose(fp);
