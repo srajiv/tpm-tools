@@ -21,6 +21,8 @@
 #       http://www.opensource.org/licenses/cpl1.0.php.
 #
 
+noinst_HEADERS	=	tpm_nvcommon.h
+
 noinst_PROGRAMS =	tpm_startup	\
 			tpm_reset
 
