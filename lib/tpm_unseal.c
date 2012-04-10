@@ -88,7 +88,6 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	int res_size = 0;
 
 	BIO *bdata = NULL, *b64 = NULL, *bmem = NULL;
-	int bioRc;
 
 	if ( tss_data == NULL || tss_size == NULL ) {
 		rc = TPMSEAL_STD_ERROR;
@@ -184,7 +183,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	bmem = BIO_pop(b64);
 	BIO_free(b64);
 	b64 = NULL;
-	bioRc = BIO_reset(bmem);
+	BIO_reset(bmem);
 
 	/* Check for EVP Key Type Header */
 	BIO_gets(bdata, data, sizeof(data));
@@ -251,7 +250,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	bmem = BIO_pop(b64);
 	BIO_free(b64);
 	b64 = NULL;
-	bioRc = BIO_reset(bmem);
+	BIO_reset(bmem);
 
 	/* Read the base64 encrypted data into the memory BIO */
 	while ((rcLen = BIO_gets(bdata, data, sizeof(data))) > 0) {
@@ -419,7 +418,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	bmem = BIO_pop(b64);
 	BIO_free(b64);
 	b64 = NULL;
-	bioRc = BIO_reset(bmem);
+	BIO_reset(bmem);
 
 tss_out:
 	Tspi_Context_Close(hContext);
@@ -433,7 +432,7 @@ out:
 	if ( b64 )
 		BIO_free(b64);
 	if ( bmem ) {
-		bioRc = BIO_set_close(bmem, BIO_CLOSE);
+		BIO_set_close(bmem, BIO_CLOSE);
 		BIO_free(bmem);
 	}
 
