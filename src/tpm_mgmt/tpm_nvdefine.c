@@ -36,6 +36,10 @@ static const char *datapass;
 static BOOL dataWellKnown;
 static BOOL askDataPass;
 static int end;
+static UINT32 selectedPcrsRead[24];
+static UINT32 selectedPcrsWrite[24];
+static UINT32 selectedPcrsReadLen = 0;
+static UINT32 selectedPcrsWriteLen = 0;
 
 TSS_HCONTEXT hContext = 0;
 
@@ -101,6 +105,20 @@ static int parse(const int aOpt, const char *aArg)
 		useUnicode = TRUE;
 		break;
 
+	case 'r':
+		if (aArg && atoi(aArg) >= 0 && atoi(aArg) < 24) {
+			selectedPcrsRead[selectedPcrsReadLen++] = atoi(aArg);
+		} else
+			return -1;
+		break;
+
+	case 'w':
+		if (aArg && atoi(aArg) >= 0 && atoi(aArg) < 24) {
+			selectedPcrsWrite[selectedPcrsWriteLen++] = atoi(aArg);
+		} else
+			return -1;
+		break;
+
 	default:
 		return -1;
 	}
@@ -123,9 +141,13 @@ static void help(const char* aCmd)
 	logNVIndexCmdOption();
 	logCmdOption("-s, --size",
 		     _("Size of the NVRAM area"));
+	logCmdOption("-r, --rpcrs",
+		     _("PCRs to seal the NVRAM area to for reading (use multiple times)"));
+	logCmdOption("-w, --wpcrs",
+		     _("PCRs to seal the NVRAM area to for writing (use multiple times)"));
+
 	logCmdOption("-p, --permissions",
 		     _("Permissions of the NVRAM area"));
-
         displayStringsAndValues(permvalues, "                ");
 }
 
@@ -139,10 +161,13 @@ int main(int argc, char **argv)
 	BYTE well_known_secret[] = TSS_WELL_KNOWN_SECRET;
 	int opswd_len = -1;
 	int dpswd_len = -1;
+	TSS_HPCRS hPcrsRead = 0, hPcrsWrite = 0;
 	struct option hOpts[] = {
 		{"index"           , required_argument, NULL, 'i'},
 		{"size"            , required_argument, NULL, 's'},
 		{"permissions"     , required_argument, NULL, 'p'},
+		{"rpcrs"           , required_argument, NULL, 'r'},
+		{"wpcrs"           , required_argument, NULL, 'w'},
 		{"pwdo"            , optional_argument, NULL, 'o'},
 		{"pwda"            , optional_argument, NULL, 'a'},
 		{"use-unicode"     ,       no_argument, NULL, 'u'},
@@ -154,7 +179,7 @@ int main(int argc, char **argv)
 	initIntlSys();
 
 	if (genericOptHandler
-		    (argc, argv, "i:s:p:o:a:yzu", hOpts,
+		    (argc, argv, "i:s:p:o:a:r:w:yzu", hOpts,
 		     sizeof(hOpts) / sizeof(struct option), parse, help) != 0)
 		goto out;
 
@@ -269,7 +294,81 @@ int main(int argc, char **argv)
 				 nvsize) != TSS_SUCCESS)
 		goto out_close_obj;
 
-	if (NVDefineSpace(nvObject, (TSS_HPCRS)0, (TSS_HPCRS)0) !=
+	if (selectedPcrsReadLen) {
+		TSS_FLAG initFlag = TSS_PCRS_STRUCT_INFO_SHORT;
+		UINT32 pcrSize;
+		BYTE *pcrValue;
+		UINT32 i;
+
+		for (i = 0; i < selectedPcrsReadLen; i++) {
+			if (selectedPcrsRead[i] > 15) {
+				initFlag = TSS_PCRS_STRUCT_INFO_LONG;
+			}
+		}
+
+		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+					&hPcrsRead) != TSS_SUCCESS)
+			goto out_close;
+
+		for (i = 0; i < selectedPcrsReadLen; i++) {
+			if (tpmPcrRead(hTpm, selectedPcrsRead[i], &pcrSize, &pcrValue) !=
+			    TSS_SUCCESS)
+				goto out_close;
+
+			if (pcrcompositeSetPcrValue(hPcrsRead, selectedPcrsRead[i],
+						    pcrSize, pcrValue)
+					!= TSS_SUCCESS)
+				goto out_close;
+		}
+
+		if (initFlag) {
+			UINT32 localityValue =
+				TPM_LOC_ZERO | TPM_LOC_ONE | TPM_LOC_TWO | TPM_LOC_THREE |
+				TPM_LOC_FOUR;
+
+			if (pcrcompositeSetPcrLocality(hPcrsRead, localityValue) != TSS_SUCCESS)
+				goto out_close;
+		}
+	}
+
+	if (selectedPcrsWriteLen) {
+		TSS_FLAG initFlag = TSS_PCRS_STRUCT_INFO_SHORT;
+		UINT32 pcrSize;
+		BYTE *pcrValue;
+		UINT32 i;
+
+		for (i = 0; i < selectedPcrsWriteLen; i++) {
+			if (selectedPcrsWrite[i] > 15) {
+				initFlag = TSS_PCRS_STRUCT_INFO_LONG;
+			}
+		}
+
+		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+					&hPcrsWrite) != TSS_SUCCESS)
+			goto out_close;
+
+		for (i = 0; i < selectedPcrsWriteLen; i++) {
+			if (tpmPcrRead(hTpm, selectedPcrsWrite[i], &pcrSize, &pcrValue) !=
+			    TSS_SUCCESS)
+				goto out_close;
+
+			if (pcrcompositeSetPcrValue(hPcrsWrite, selectedPcrsWrite[i],
+						    pcrSize, pcrValue)
+					!= TSS_SUCCESS)
+				goto out_close;
+		}
+
+		if (initFlag) {
+			UINT32 localityValue =
+				TPM_LOC_ZERO | TPM_LOC_ONE | TPM_LOC_TWO | TPM_LOC_THREE |
+				TPM_LOC_FOUR;
+
+			if (pcrcompositeSetPcrLocality(hPcrsWrite, localityValue) != TSS_SUCCESS)
+				goto out_close;
+		}
+	}
+
+	if (NVDefineSpace(nvObject, hPcrsRead, hPcrsWrite) !=
 	    TSS_SUCCESS)
 		goto out_close;
 
