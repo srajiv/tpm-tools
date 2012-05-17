@@ -88,7 +88,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	int res_size = 0;
 
 	BIO *bdata = NULL, *b64 = NULL, *bmem = NULL;
-	int bioRc;
+	int bioRc = 0;
 
 	if ( tss_data == NULL || tss_size == NULL ) {
 		rc = TPMSEAL_STD_ERROR;
@@ -430,7 +430,12 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	BIO_free(b64);
 	b64 = NULL;
 	/* a BIO_reset failure shouldn't have an affect at this point */
-	BIO_reset(bmem);
+	bioRc = BIO_reset(bmem);
+	if (bioRc != 1) {
+		tpm_errno = EIO;
+		rc = TPMSEAL_STD_ERROR;
+		goto out;
+	}
 
 tss_out:
 	Tspi_Context_Close(hContext);
@@ -444,8 +449,13 @@ out:
 	if ( b64 )
 		BIO_free(b64);
 	if ( bmem ) {
-		BIO_set_close(bmem, BIO_CLOSE);
+		bioRc = BIO_set_close(bmem, BIO_CLOSE);
 		BIO_free(bmem);
+	}
+
+	if (bioRc != 1) {
+		tpm_errno = EIO;
+		rc = TPMSEAL_STD_ERROR;
 	}
 
 	if ( evpKeyData )
